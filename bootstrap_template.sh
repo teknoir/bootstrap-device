@@ -12,6 +12,7 @@ pushd $tmp_dir
 echo "Teknoir bootstrapping..."
 
 echo "Install apt dependencies"
+# TODO: Add support for more dists: CentOS, Alpine etc...
 $SUDO apt install -y apt-transport-https ca-certificates curl gnupg-agent software-properties-common gettext-base
 $SUDO apt autoremove --purge -y || true
 $SUDO apt clean || true
@@ -99,7 +100,7 @@ subjects:
     namespace: kube-system
 EOL
 
-$SUDO tee /var/lib/rancher/k3s/server/manifests/toe.yaml > /dev/null << envsubst << EOL
+$SUDO tee /var/lib/rancher/k3s/server/manifests/toe.yaml > /dev/null << EOL
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -123,11 +124,11 @@ spec:
           imagePullPolicy: Always
           env:
             - name: TOE_PROJECT
-              value: "${GCP_PROJECT}"
+              value: "#GCP_PROJECT#"
             - name: TOE_IOT_REGISTRY
-              value: "${IOT_REGISTRY}"
+              value: "#IOT_REGISTRY#"
             - name: TOE_DEVICE
-              value: "${DEVICE_ID}"
+              value: "#DEVICE_ID#"
             - name: TOE_CA_CERT
               value: "/toe_conf/roots.pem"
             - name: TOE_PRIVATE_KEY
@@ -141,6 +142,16 @@ spec:
             # directory location on host
             path: /toe_conf
 EOL
+
+$SUDO mkdir -p /toe_conf/
+curl -sfL https://pki.goog/roots.pem | $SUDO tee -a /toe_conf/roots.pem > /dev/null
+$SUDO tee /toe_conf/rsa_private.pem > /dev/null << EOL
+EOL
+$SUDO chmod 400 /toe_conf/rsa_private.pem
+
+mkdir -p $HOME/.ssh
+$SUDO ssh-keygen -y -f /toe_conf/rsa_private.pem > $HOME/.ssh/authorized_keys
+$SUDO chown $USER.$USER $HOME/.ssh/authorized_keys
 
 echo "Device bootstrapped successfully!"
 popd
