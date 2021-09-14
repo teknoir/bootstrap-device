@@ -1,7 +1,7 @@
 verify_downloader curl || verify_downloader wget || fatal 'Can not find curl or wget for downloading files'
 
 SUDO=''
-if [ "${EUID}" != 0 ]; then
+if [ "${EUID}" != 0 ] && [ -z "${OS_BUILD}" ]; then
     info "Please be ready to enter the device´s sudo password:"
     SUDO='sudo -H'
 fi
@@ -15,6 +15,7 @@ download k3s_installer.sh https://get.k3s.io
 chmod +x k3s_installer.sh
 
 if [ "${OS_BUILD}" = true ]; then
+    info "OS Build specifics"
     sed -i "s#-d /run/systemd#true#g" k3s_installer.sh
     sed -i "s#curl -w#curl --insecure -w#g" k3s_installer.sh
     sed -i "s#curl -o#curl --insecure -o#g" k3s_installer.sh
