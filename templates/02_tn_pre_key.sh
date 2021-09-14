@@ -1,7 +1,7 @@
 verify_downloader curl || verify_downloader wget || fatal 'Can not find curl or wget for downloading files'
 
 SUDO=''
-if (( $EUID -ne 0 )); then
+if [ "${EUID}" != 0 ]; then
     info "Please be ready to enter the device´s sudo password:"
     SUDO='sudo -H'
 fi
