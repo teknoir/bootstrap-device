@@ -12,10 +12,12 @@ info "Teknoir bootstrapping...${TMP}"
 
 info "Install Rancher K3s"
 download k3s_installer.sh https://get.k3s.io
-chmod +x ./k3s_installer.sh
+chmod +x k3s_installer.sh
 
 if [ "${OS_BUILD}" = true ]; then
-    sed -i "s#-d /run/systemd#true#g" ./k3s_installer.sh
+    sed -i "s#-d /run/systemd#true#g" k3s_installer.sh
+    sed -i "s#curl -w#curl --insecure -w#g" k3s_installer.sh
+    sed -i "s#curl -o#curl --insecure -o#g" k3s_installer.sh
 fi
 
 if [ "${INSTALL_CALICO}" = true ]; then
