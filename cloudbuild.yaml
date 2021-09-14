@@ -1,0 +1,22 @@
+timeout: '3600s'
+
+steps:
+  - id: 'pi-gen-builder'
+    name: 'gcr.io/cloud-builders/docker'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - './build_pipeline.sh'
+    env:
+      - '_GCP_PROJECT=${_GCP_PROJECT}'
+      - '_IOT_REGISTRY=${_IOT_REGISTRY}'
+      - '_DEVICE_ID=${_DEVICE_ID}'
+      - '_DOMAIN=${_DOMAIN}'
+      - '_RSA_PRIVATE=${_RSA_PRIVATE}'
+      - '_BOOTSTRAP_FILE=tn.sh'
+
+artifacts:
+  objects:
+    location: 'gs://${_IOT_REGISTRY}.${_DOMAIN}/downloads/${_DEVICE_ID}'
+    paths:
+      - 'tn.sh'
