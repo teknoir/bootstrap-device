@@ -2,7 +2,7 @@ EOL
 fi
 
 echo "Device bootstrapped successfully!"
-popd
+cd ..
 rm -rf $TMP
 
 echo "Notice!"
