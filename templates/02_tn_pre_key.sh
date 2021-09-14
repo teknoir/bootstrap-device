@@ -7,7 +7,7 @@ if (( $EUID != 0 )); then
 fi
 
 TMP=$(mktemp -d -t bootstrap-device-XXX)
-pushd $TMP
+cd $TMP
 info "Teknoir bootstrapping...${TMP}"
 
 info "Install Rancher K3s"
