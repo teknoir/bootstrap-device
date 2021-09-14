@@ -5,14 +5,13 @@ echo "Device bootstrapped successfully!"
 cd ..
 rm -rf $TMP
 
+echo ""
+echo " _____ _____ _  ___   _  ___ ___ ____ "
+echo "|_   _| ____| |/ / \ | |/ _ \_ _|  _ \ "
+echo "  | | |  _| | ' /|  \| | | | | || |_) | "
+echo "  | | | |___| . \| |\  | |_| | ||  _ <  "
+echo "  |_| |_____|_|\_\_| \_|\___/___|_| \_\ "
+echo ""
 echo "Notice!"
 echo "No networking or user settings has been changed to match settings in the platform."
 echo "To enable tunneling from the platform, please refer to our documentation."
-
-# TBD: some info about FAQ/Tunneling etc.
-# Remember no networking, user or tunneling settings are applied
-#info "update-alternatives --set iptables /usr/sbin/iptables-legacy
-#     update-alternatives --set ip6tables /usr/sbin/ip6tables-legacy"
-#mkdir -p $HOME/.ssh
-#$SUDO ssh-keygen -y -f ${CONFIG_PATH}/rsa_private.pem > $HOME/.ssh/authorized_keys
-#$SUDO chown $USER.$USER $HOME/.ssh/authorized_keys
