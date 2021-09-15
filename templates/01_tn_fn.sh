@@ -20,7 +20,11 @@ download() {
 
     case $DOWNLOADER in
         curl)
-            curl -o $1 -sfL $2
+            if [ "${OS_BUILD}" = true ]; then
+                curl --insecure -o $1 -sfL $2
+            else
+                curl -o $1 -sfL $2
+            fi
             ;;
         wget)
             wget -qO $1 $2
