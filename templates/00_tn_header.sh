@@ -1,7 +1,7 @@
 #!/bin/sh
 set -e
 set -o noglob
-set -x
+#set -x
 
 # Usage:
 #   TBD
