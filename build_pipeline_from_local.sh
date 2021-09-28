@@ -55,4 +55,4 @@ SIGNED_URL=$(gsutil -q -i kubeflow-admin@teknoir.iam.gserviceaccount.com signurl
 
 echo "Drop-in script for device generated and uploaded to secure bucket!"
 echo "Run the following command on the device:"
-echo "bash <(curl -Ls \"https${SIGNED_URL#*https}\")"
+echo "bash <(curl -LsS \"https${SIGNED_URL#*https}\")"

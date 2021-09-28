@@ -3,7 +3,6 @@ fi
 
 echo "Device bootstrapped successfully!"
 cd ..
-rm -rf $TMP
 
 echo ""
 echo " _____ _____ _  ___   _  ___ ___ ____ "

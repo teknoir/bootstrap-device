@@ -7,6 +7,8 @@ if [ ${EUID} -ne 0 ] && [ -z "${OS_BUILD+x}" ]; then
 fi
 
 TMP=$(mktemp -d -t bootstrap-device-XXX)
+tempfiles+=( "$TMP" )
+
 cd $TMP
 info "Teknoir bootstrapping...${TMP}"
 
@@ -14,11 +16,15 @@ info "Install Rancher K3s"
 download k3s_installer.sh https://get.k3s.io
 chmod +x k3s_installer.sh
 
-if [ "${OS_BUILD}" = true ]; then
-    info "OS Build specifics"
-    sed -i "s#-d /run/systemd#true#g" k3s_installer.sh
+if [ "${OS_BUILD}" = true ] || [ "${INSECURE}" = true ]; then
+    info "Running installation without verifying ssl certs on URLs"
     sed -i "s#curl -w#curl --insecure -w#g" k3s_installer.sh
     sed -i "s#curl -o#curl --insecure -o#g" k3s_installer.sh
+fi
+
+if [ "${OS_BUILD}" = true ] || [ "${INSECURE}" = true ]; then
+    info "OS Build specifics"
+    sed -i "s#-d /run/systemd#true#g" k3s_installer.sh
 fi
 
 if [ "${INSTALL_CALICO}" = true ]; then
