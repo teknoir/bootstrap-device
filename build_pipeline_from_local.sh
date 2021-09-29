@@ -40,6 +40,9 @@ gcloud config set compute/zone ${ZONE}
 
 export DEVICE_MANIFEST="$(kubectl --context $CONTEXT -n $NAMESPACE get device $DEVICE -o yaml)"
 export _RSA_PRIVATE="$(echo "$DEVICE_MANIFEST" | yq eval .spec.keys.data.rsa_private - | base64 --decode --input -)"
+export _FIRST_USER_NAME="$(echo "$DEVICE_MANIFEST" | yq eval .spec.keys.data.username - | base64 --decode --input -)"
+export _FIRST_USER_PASS="$(echo "$DEVICE_MANIFEST" | yq eval .spec.keys.data.userpassword - | base64 --decode --input -)"
+export _FIRST_USER_KEY="$(echo "$DEVICE_MANIFEST" | yq eval .spec.keys.data.publicsshkey - | base64 --decode --input -)"
 
 echo "_GCP_PROJECT   = ${_GCP_PROJECT}"
 echo "_DOMAIN        = ${_DOMAIN}"
