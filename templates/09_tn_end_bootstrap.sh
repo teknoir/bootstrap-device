@@ -1,0 +1,11 @@
+info "Device bootstrapped successfully!"
+
+info ""
+info " _____ _____ _  ___   _  ___ ___ ____ "
+info "|_   _| ____| |/ / \ | |/ _ \_ _|  _ \ "
+info "  | | |  _| | ' /|  \| | | | | || |_) | "
+info "  | | | |___| . \| |\  | |_| | ||  _ <  "
+info "  |_| |_____|_|\_\_| \_|\___/___|_| \_\ "
+info ""
+info "Notice!"
+info "No networking or user settings has been changed to match settings in the platform."

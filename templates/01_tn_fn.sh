@@ -33,6 +33,12 @@ error() {
 }
 trap 'error ${LINENO}' ERR
 
+SUDO=''
+if [ ${EUID} -ne 0 ] && [ -z "${OS_BUILD+x}" ]; then
+    info "Please be ready to enter the device´s sudo password:"
+    SUDO='sudo -H'
+fi
+
 DOWNLOADER=
 # --- download ---
 download() {
@@ -42,13 +48,13 @@ download() {
         curl)
             if [ "${OS_BUILD}" = true ] || [ "${INSECURE}" = true ]; then
                 info "Running installation without verifying ssl certs on URLs"
-                curl --insecure -o $1 -sSfL $2
+                $SUDO curl --insecure -o $1 -sSfL $2
             else
-                curl -o $1 -sSfL $2
+                $SUDO curl -o $1 -sSfL $2
             fi
             ;;
         wget)
-            wget -qO $1 $2
+            $SUDO wget -qO $1 $2
             ;;
         *)
             fatal "Incorrect executable '$DOWNLOADER'"
@@ -69,3 +75,10 @@ verify_downloader() {
     return 0
 }
 
+verify_downloader curl || verify_downloader wget || fatal 'Can not find curl or wget for downloading files'
+
+TMP=$(mktemp -d -t bootstrap-device-XXX)
+tempfiles+=( "$TMP" )
+
+cd $TMP
+info "Teknoir bootstrapping...${TMP}"

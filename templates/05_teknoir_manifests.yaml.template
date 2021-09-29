@@ -1,0 +1,114 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: toe
+  namespace: kube-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: toe
+  template:
+    metadata:
+      labels:
+        app: toe
+    spec:
+      serviceAccountName: toe
+      containers:
+        - name: toe
+          image: gcr.io/teknoir/toe:latest
+          imagePullPolicy: Always
+          env:
+            - name: TOE_PROJECT
+              value: "${_GCP_PROJECT}"
+            - name: TOE_IOT_REGISTRY
+              value: "${_IOT_REGISTRY}"
+            - name: TOE_DEVICE
+              value: "${_DEVICE_ID}"
+            - name: TOE_CA_CERT
+              value: "/etc/teknoir/roots.pem"
+            - name: TOE_PRIVATE_KEY
+              value: "/etc/teknoir/rsa_private.pem"
+          volumeMounts:
+            - name: toe-volume
+              mountPath: "/etc/teknoir"
+      volumes:
+        - name: toe-volume
+          hostPath:
+            # directory location on host
+            path: "/etc/teknoir"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mqtt
+  namespace: kube-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mqtt
+  template:
+    metadata:
+      labels:
+        app: mqtt
+    spec:
+      containers:
+        - name: mqtt
+          image: gcr.io/teknoir/hmq:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 1883
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: toe
+  namespace: kube-system
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: toe
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+  - kind: ServiceAccount
+    name: toe
+    namespace: kube-system
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mqtt
+  namespace: kube-system
+spec:
+  selector:
+    app: mqtt
+  ports:
+    - protocol: TCP
+      port: 1883
+      targetPort: 1883
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mqtt-localhost
+  namespace: kube-system
+spec:
+  type: NodePort
+  ports:
+    - nodePort: 31883
+      port: 1883
+      protocol: TCP
+      targetPort: 1883
+  selector:
+    app: mqtt
