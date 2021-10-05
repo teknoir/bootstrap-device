@@ -13,10 +13,14 @@ steps:
       - '_DEVICE_ID=${_DEVICE_ID}'
       - '_DOMAIN=${_DOMAIN}'
       - '_RSA_PRIVATE=${_RSA_PRIVATE}'
-      - '_BOOTSTRAP_FILE=tn.sh'
+      - '_FIRST_USER_NAME=${_FIRST_USER_NAME}'
+      - '_FIRST_USER_PASS=${_FIRST_USER_PASS}'
+      - '_FIRST_USER_KEY=${_FIRST_USER_KEY}'
+      - '_BOOTSTRAP_FILE=${_BOOTSTRAP_FILE}'
+      - '_AR_DOCKER_SECRET=${_AR_DOCKER_SECRET}'
 
 artifacts:
   objects:
     location: 'gs://${_IOT_REGISTRY}.${_DOMAIN}/downloads/${_DEVICE_ID}'
     paths:
-      - 'tn.sh'
+      - '${_BOOTSTRAP_FILE}'
