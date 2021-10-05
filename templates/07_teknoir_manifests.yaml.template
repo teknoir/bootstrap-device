@@ -1,4 +1,42 @@
 ---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: artifact-registry-secret
+  namespace: kube-system
+type: kubernetes.io/dockerconfigjson
+data:
+  .dockerconfigjson: "${_AR_DOCKER_SECRET}"
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: artifact-registry-secret
+  namespace: default
+type: kubernetes.io/dockerconfigjson
+data:
+  .dockerconfigjson: "${_AR_DOCKER_SECRET}"
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: default
+  namespace: default
+imagePullSecrets:
+- name: artifact-registry-secret
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: default
+  namespace: kube-system
+imagePullSecrets:
+- name: artifact-registry-secret
+
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -68,6 +106,8 @@ kind: ServiceAccount
 metadata:
   name: toe
   namespace: kube-system
+imagePullSecrets:
+- name: artifact-registry-secret
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1

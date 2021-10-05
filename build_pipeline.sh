@@ -18,6 +18,7 @@ if [ -z ${_FIRST_USER_NAME+x} ]; then fatal "_FIRST_USER_NAME is unset"; fi
 if [ -z ${_FIRST_USER_PASS+x} ]; then fatal "_FIRST_USER_PASS is unset"; fi
 if [ -z ${_FIRST_USER_KEY+x} ]; then fatal "_FIRST_USER_KEY is unset"; fi
 if [ -z ${_BOOTSTRAP_FILE+x} ]; then fatal "_BOOTSTRAP_FILE is unset"; fi
+if [ -z ${_AR_DOCKER_SECRET+x} ]; then fatal "_AR_DOCKER_SECRET is unset"; fi
 
 TEMPLATES_PATH=$(realpath ./templates)
 source build_bootstrap_script.sh

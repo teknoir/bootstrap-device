@@ -2,7 +2,6 @@
 set -e
 shopt -s nullglob
 
-# --- verify existence of network downloader executable ---
 build_bootstrap_script() {
   BOOTSTRAP_FILE=$1
   TEMPLATES_PATH=$2
