@@ -13,18 +13,6 @@ fatal()
     exit 1
 }
 
-error() {
-  local message="$1"
-  local code="${3:-1}"
-  if [[ -n "$message" ]] ; then
-    echo "[ERROR] Error: ${message}; exiting with status ${code}"
-  else
-    echo "[ERROR] Error: exiting with status ${code}"
-  fi
-  exit "${code}"
-}
-trap error ERR
-
 SUDO=''
 if [ ${EUID} -ne 0 ] && [ -z "${OS_BUILD+x}" ]; then
     info "Please be ready to enter the device´s sudo password:"
@@ -70,11 +58,18 @@ verify_downloader() {
 verify_downloader curl || verify_downloader wget || fatal 'Can not find curl or wget for downloading files'
 
 TMP=$(mktemp -d -t bootstrap-device-XXX)
-# --- cleanup trap ---
+# --- cleanup/error trap ---
+error() {
+  local code="$1"
+  echo "[ERROR] Error: exiting with status ${code}"
+  exit "${code}"
+}
 cleanup() {
   rm -rf "$TMP"
+  [ $? -eq 0 ] && exit
+  error "$?"
 }
-trap cleanup 0
+trap 'cleanup' EXIT
 
 cd $TMP
 info "Teknoir bootstrapping...${TMP}"
