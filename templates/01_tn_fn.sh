@@ -13,13 +13,6 @@ fatal()
     exit 1
 }
 
-# --- traps ---
-tempfiles=( )
-cleanup() {
-  rm -rf "${tempfiles[@]}"
-}
-trap cleanup 0
-
 error() {
   local parent_lineno="$1"
   local message="$2"
@@ -78,7 +71,11 @@ verify_downloader() {
 verify_downloader curl || verify_downloader wget || fatal 'Can not find curl or wget for downloading files'
 
 TMP=$(mktemp -d -t bootstrap-device-XXX)
-tempfiles+=( "$TMP" )
+# --- cleanup trap ---
+cleanup() {
+  rm -rf "$TMP"
+}
+trap cleanup 0
 
 cd $TMP
 info "Teknoir bootstrapping...${TMP}"

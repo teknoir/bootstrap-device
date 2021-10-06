@@ -11,13 +11,9 @@ cp ${CONFIG_PATH}/rsa_private.pem /home/${_FIRST_USER_NAME}/.ssh/id_rsa
 ssh-keygen -y -f ${CONFIG_PATH}/rsa_private.pem > /home/${_FIRST_USER_NAME}/.ssh/id_rsa.pub
 cat /home/${_FIRST_USER_NAME}/.ssh/id_rsa.pub > /home/${_FIRST_USER_NAME}/.ssh/authorized_keys
 if [ -z ${_FIRST_USER_KEY+x} ] || [ "${_FIRST_USER_KEY}" = "" ]; then
-  info "_FIRST_USER_KEY is unset";
+  echo "[INFO] _FIRST_USER_KEY is not set, will continue with only password auth";
 else
   echo "${_FIRST_USER_KEY}" >> /home/${_FIRST_USER_NAME}/.ssh/authorized_keys
-#  sed -i 's/#PasswordAuthentication yes/PasswordAuthentication no/g' /etc/ssh/sshd_config
-#  cat >> /etc/sudoers << EOL
-#${FIRST_USER_NAME} ALL=(ALL) NOPASSWD: ALL
-#EOL
 fi
 chmod 600 /home/${_FIRST_USER_NAME}/.ssh/*
 chmod 744 /home/${_FIRST_USER_NAME}/.ssh
