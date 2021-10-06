@@ -70,7 +70,7 @@ build_bootstrap_script ${BOOTSTRAP_FILE} ${TEMPLATES_PATH}
 
 BUCKET="${NAMESPACE}.${_DOMAIN}"
 gsutil cp ${BOOTSTRAP_FILE} gs://${BUCKET}/downloads/${DEVICE}/${BOOTSTRAP_FILE}
-SIGNED_URL=$(gsutil -q -i kubeflow-admin@teknoir.iam.gserviceaccount.com signurl -d 12h -u gs://${BUCKET}/downloads/${DEVICE}/${BOOTSTRAP_FILE})
+SIGNED_URL=$(gsutil -q -i kubeflow-admin@${_GCP_PROJECT}.iam.gserviceaccount.com signurl -d 12h -u gs://${BUCKET}/downloads/${DEVICE}/${BOOTSTRAP_FILE})
 
 echo "Drop-in script for device generated and uploaded to secure bucket!"
 echo "Run the following command on the device:"
