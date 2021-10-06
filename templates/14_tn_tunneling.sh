@@ -1,7 +1,7 @@
 warn "To enable tunneling, the user ${_FIRST_USER_NAME} has to be created."
 
 on_sudo() {
-  $SUDO bash -- "$@"
+  $SUDO sh -- "$@"
 }
 
 setup_user() {
@@ -24,18 +24,25 @@ adduser ${_FIRST_USER_NAME} sudo
 EOF
 }
 
-[[ $OS_BUILD = true ]] || read -p "Do you want to add ${_FIRST_USER_NAME} and enable tunneling? [yY]" -n 1 -r
-echo    # (optional) move to a new line
-if [[ $REPLY =~ ^[Yy]$ ]] || [[ $OS_BUILD = true ]]; then
+if [ "${OS_BUILD}" != true ]; then
+  echo -n "Do you want to add ${_FIRST_USER_NAME} and enable tunneling? [yY]"
+  read REPLY
+  echo    # (optional) move to a new line
+fi
+
+if [ $OS_BUILD = true ] || exprq "${REPLY}" "^[Yy]$"; then
   if ! id -u ${_FIRST_USER_NAME} >/dev/null 2>&1; then
     $SUDO adduser --disabled-password --gecos "" ${_FIRST_USER_NAME}
     echo "${_FIRST_USER_NAME}:${_FIRST_USER_PASS}" | $SUDO chpasswd
     setup_user
   else
-    warn "The user ${_FIRST_USER_NAME} already exist, this will change password and OVERWRITE ssh keys."
-    [[ $OS_BUILD = true ]] || read -p "Do you want to update ${_FIRST_USER_NAME} and enable tunneling? [yY]" -n 1 -r
-    echo    # (optional) move to a new line
-    if [[ $REPLY =~ ^[Yy]$ ]] || [[ $OS_BUILD = true ]]; then
+    warn "The user ${_FIRST_USER_NAME} already exist, this will change password and OVERWRITE ${_FIRST_USER_NAME}´s ssh keys."
+    if [ "${OS_BUILD}" != true ]; then
+      echo -n "Do you want to update ${_FIRST_USER_NAME} and enable tunneling? [yY]"
+      read REPLY
+      echo    # (optional) move to a new line
+    fi
+    if [ $OS_BUILD = true ] || exprq "${REPLY}" "^[Yy]$"; then
       echo "${_FIRST_USER_NAME}:${_FIRST_USER_PASS}" | $SUDO chpasswd
       setup_user
     fi
