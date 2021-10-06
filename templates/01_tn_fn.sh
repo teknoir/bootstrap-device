@@ -14,17 +14,16 @@ fatal()
 }
 
 error() {
-  local parent_lineno="$1"
-  local message="$2"
+  local message="$1"
   local code="${3:-1}"
   if [[ -n "$message" ]] ; then
-    echo "Error on or near line ${parent_lineno}: ${message}; exiting with status ${code}"
+    echo "[ERROR] Error: ${message}; exiting with status ${code}"
   else
-    echo "Error on or near line ${parent_lineno}; exiting with status ${code}"
+    echo "[ERROR] Error: exiting with status ${code}"
   fi
   exit "${code}"
 }
-trap 'error ${LINENO}' ERR
+trap error ERR
 
 SUDO=''
 if [ ${EUID} -ne 0 ] && [ -z "${OS_BUILD+x}" ]; then
