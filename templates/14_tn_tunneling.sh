@@ -24,7 +24,7 @@ adduser ${_FIRST_USER_NAME} sudo
 EOF
 }
 
-if [ "${OS_BUILD}" != true ]; then
+if [ ! "${OS_BUILD}" = true ]; then
   echo -n "Do you want to add ${_FIRST_USER_NAME} and enable tunneling? [yY]"
   read REPLY
   echo    # (optional) move to a new line
@@ -37,7 +37,7 @@ if [ $OS_BUILD = true ] || exprq "${REPLY}" "^[Yy]$"; then
     setup_user
   else
     warn "The user ${_FIRST_USER_NAME} already exist, this will change password and OVERWRITE ${_FIRST_USER_NAME}´s ssh keys."
-    if [ "${OS_BUILD}" != true ]; then
+    if [ ! "${OS_BUILD}" = true ]; then
       echo -n "Do you want to update ${_FIRST_USER_NAME} and enable tunneling? [yY]"
       read REPLY
       echo    # (optional) move to a new line
