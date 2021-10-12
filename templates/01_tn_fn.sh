@@ -28,7 +28,7 @@ download() {
         curl)
             if [ "${OS_BUILD}" = true ] || [ "${INSECURE}" = true ]; then
                 info "Running installation without verifying ssl certs on URLs"
-                $SUDO curl --dns-servers 8.8.8.8,8.8.4.4 --insecure -o $1 -sSfL $2
+                $SUDO curl --insecure -o $1 -sSfL $2
             else
                 $SUDO curl -o $1 -sSfL $2
             fi
