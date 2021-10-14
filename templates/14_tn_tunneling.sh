@@ -5,6 +5,12 @@ on_sudo() {
 }
 
 setup_user() {
+  if ! id -u ${_FIRST_USER_NAME} >/dev/null 2>&1; then
+    $SUDO adduser --disabled-password --gecos "" ${_FIRST_USER_NAME}
+  fi
+
+  echo "${_FIRST_USER_NAME}:${_FIRST_USER_PASS}" | $SUDO chpasswd
+
   on_sudo << EOF
 mkdir -p /home/${_FIRST_USER_NAME}/.ssh
 cp ${CONFIG_PATH}/rsa_private.pem /home/${_FIRST_USER_NAME}/.ssh/id_rsa
@@ -24,27 +30,21 @@ adduser ${_FIRST_USER_NAME} sudo
 EOF
 }
 
-if [ ! "${OS_BUILD}" = true ]; then
-  echo -n "Do you want to add ${_FIRST_USER_NAME} and enable tunneling? [yY]"
-  read REPLY
-  echo    # (optional) move to a new line
-fi
-
-if [ $OS_BUILD = true ] || exprq "${REPLY}" "^[Yy]$"; then
-  if ! id -u ${_FIRST_USER_NAME} >/dev/null 2>&1; then
-    $SUDO adduser --disabled-password --gecos "" ${_FIRST_USER_NAME}
-    echo "${_FIRST_USER_NAME}:${_FIRST_USER_PASS}" | $SUDO chpasswd
-    setup_user
-  else
-    warn "The user ${_FIRST_USER_NAME} already exist, this will change password and OVERWRITE ${_FIRST_USER_NAME}´s ssh keys."
-    if [ ! "${OS_BUILD}" = true ]; then
-      echo -n "Do you want to update ${_FIRST_USER_NAME} and enable tunneling? [yY]"
-      read REPLY
-      echo    # (optional) move to a new line
-    fi
-    if [ $OS_BUILD = true ] || exprq "${REPLY}" "^[Yy]$"; then
-      echo "${_FIRST_USER_NAME}:${_FIRST_USER_PASS}" | $SUDO chpasswd
-      setup_user
-    fi
+if [ ${OS_BUILD} ]; then
+  setup_user
+else
+  if id -u ${_FIRST_USER_NAME} >/dev/null 2>&1; then
+    warn "The user ${_FIRST_USER_NAME} already exist! This operation will change the password and OVERWRITE ssh keys for this users."
   fi
+  warn "Do you want to add \"${_FIRST_USER_NAME}\" as a user and enable tunneling? [yY]"
+  read REPLY
+
+  case ${REPLY} in
+    [Yy]* )
+      setup_user
+      ;;
+    * )
+      info "Skipping tunneling setup"
+      ;;
+  esac
 fi
