@@ -26,7 +26,7 @@ download() {
 
     case $DOWNLOADER in
         curl)
-            if [ "${OS_BUILD}" = true ] || [ "${INSECURE}" = true ]; then
+            if [ ${OS_BUILD} ] || [ ${INSECURE} ]; then
                 info "Running installation without verifying ssl certs on URLs"
                 $SUDO curl --insecure -o $1 -sSfL $2
             else
@@ -57,13 +57,6 @@ verify_downloader() {
 
 verify_downloader curl || verify_downloader wget || fatal 'Can not find curl or wget for downloading files'
 
-# --- regexp ---
-exprq() {
-  local value
-
-  test "$2" = ":" && value="$3" || value="$2"
-  expr "$1" : "$value" 1>/dev/null
-}
 
 TMP=$(mktemp -d -t bootstrap-device-XXX)
 # --- cleanup/error trap ---
