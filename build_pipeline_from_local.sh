@@ -31,7 +31,7 @@ done
 
 export ZONE=us-central1-c
 export _GCP_PROJECT=$(if [ "$CONTEXT" == "teknoir-dev" ]; then echo "teknoir-poc"; else echo "teknoir"; fi)
-export _DOMAIN=$([ "$_GCP_PROJECT" == 'teknoir' ] && echo "teknoir.cloud" || echo "teknoir.info")
+export _DOMAIN=$([ "$_GCP_PROJECT" == 'teknoir' ] && echo "teknoir.cloud" || echo "teknoir.dev")
 export _IOT_REGISTRY=${NAMESPACE}
 export _DEVICE_ID=${DEVICE}
 
@@ -68,7 +68,7 @@ _FIRST_USER_KEY="${_FIRST_USER_KEY}",_BOOTSTRAP_FILE="${_BOOTSTRAP_FILE}",\
 _AR_DOCKER_SECRET="${_AR_DOCKER_SECRET}"
 
 BUCKET="${NAMESPACE}.${_DOMAIN}"
-SIGNED_URL=$(gsutil -q -i kubeflow-admin@teknoir-poc.iam.gserviceaccount.com signurl -d 12h -u gs://${BUCKET}/downloads/${DEVICE}/${_BOOTSTRAP_FILE})
+SIGNED_URL=$(gsutil -q -i kubeflow-admin@${_GCP_PROJECT}.iam.gserviceaccount.com signurl -d 12h -u gs://${BUCKET}/downloads/${DEVICE}/${_BOOTSTRAP_FILE})
 
 echo "Drop-in script for device generated and uploaded to secure bucket!"
 echo "Run the following command on the device:"

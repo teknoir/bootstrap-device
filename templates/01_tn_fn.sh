@@ -58,7 +58,7 @@ verify_downloader() {
 verify_downloader curl || verify_downloader wget || fatal 'Can not find curl or wget for downloading files'
 
 
-TMP=$(mktemp -d -t bootstrap-device-XXX)
+TMP=$(mktemp -dt)
 # --- cleanup/error trap ---
 error() {
   local code="$1"

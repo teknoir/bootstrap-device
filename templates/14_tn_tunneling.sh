@@ -5,11 +5,22 @@ on_sudo() {
 }
 
 setup_user() {
+  mkdir -p /home/${_FIRST_USER_NAME}
   if ! id -u ${_FIRST_USER_NAME} >/dev/null 2>&1; then
     $SUDO adduser --disabled-password --gecos "" ${_FIRST_USER_NAME}
   fi
 
-  echo "${_FIRST_USER_NAME}:${_FIRST_USER_PASS}" | $SUDO chpasswd
+  if command -v chpasswd &> /dev/null; then
+    echo "${_FIRST_USER_NAME}:${_FIRST_USER_PASS}" | $SUDO chpasswd
+  elif command -v passwd &> /dev/null; then
+    echo -e "${_FIRST_USER_PASS}\n${_FIRST_USER_PASS}" | passwd ${_FIRST_USER_NAME}
+  elif command -v usermod &> /dev/null && command -v openssl &> /dev/null; then
+    usermod --password $(openssl passwd -1 ${_FIRST_USER_PASS}) ${_FIRST_USER_NAME}
+  else
+      warn "Could not set password for user ${_FIRST_USER_NAME}"
+      info "Skipping tunneling setup"
+      exit
+  fi
 
   on_sudo << EOF
 mkdir -p /home/${_FIRST_USER_NAME}/.ssh
@@ -25,8 +36,11 @@ chmod 600 /home/${_FIRST_USER_NAME}/.ssh/*
 chmod 744 /home/${_FIRST_USER_NAME}/.ssh
 chown -R ${_FIRST_USER_NAME}:${_FIRST_USER_NAME} /home/${_FIRST_USER_NAME}
 
-adduser ${_FIRST_USER_NAME} users
-adduser ${_FIRST_USER_NAME} sudo
+# Add root user to users and sudo groups
+if [ -e /etc/group ]; then
+    sed -i "/^users:/s/\(.*\)/\1,${_FIRST_USER_NAME}/;s/:,/:/" /etc/group
+    sed -i "/^sudo:/s/\(.*\)/\1,${_FIRST_USER_NAME}/;s/:,/:/" /etc/group
+fi
 EOF
 }
 
