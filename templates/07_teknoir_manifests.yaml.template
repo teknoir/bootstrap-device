@@ -93,12 +93,62 @@ spec:
       labels:
         app: mqtt
     spec:
+      initContainers:
+        - name: init
+          image: busybox:1.28
+          command: ['sh', '-c', 'echo>/mosquitto/shadow/passwd']
+          volumeMounts:
+            - name: shadow-volume
+              mountPath: "/mosquitto/shadow"
       containers:
         - name: mqtt
-          image: gcr.io/teknoir/hmq:latest
+          image: eclipse-mosquitto:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 1883
+          volumeMounts:
+            - name: data-volume
+              mountPath: "/mosquitto/data"
+            - name: config-volume
+              mountPath: "/mosquitto/config"
+            - name: shadow-volume
+              mountPath: "/mosquitto/shadow"
+      volumes:
+        - name: data-volume
+          hostPath:
+            path: "/mosquitto/data"
+        - name: config-volume
+          configMap:
+            name: mqtt-config
+        - name: shadow-volume
+          hostPath:
+            path: "/mosquitto/shadow"
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mqtt-config
+  namespace: kube-system
+data:
+  mosquitto.conf: |
+    listener 1883
+    protocol mqtt
+    allow_anonymous true
+    persistence true
+    persistence_location /mosquitto/data
+    persistent_client_expiration 2m
+    password_file /mosquitto/shadow/passwd
+    log_dest stdout
+    log_timestamp true
+    log_timestamp_format %Y-%m-%dT%H:%M:%S
+    log_type error
+    log_type warning
+    log_type notice
+    log_type information
+    log_type subscribe
+    log_type unsubscribe
+
 
 ---
 apiVersion: v1
