@@ -1,0 +1,16 @@
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  title: The TΞꓘN01R device bootstrap scripts
+  name: bootstrap-device
+  namespace: teknoir-system
+  description: The bootstrap scripts for the TΞꓘN01R device. Used in drop-in script and OS image builds.
+  annotations:
+    'github.com/project-slug': teknoir/bootstrap-device
+    'backstage.io/techdocs-ref': dir:./docs
+spec:
+  type: service
+  owner: group:teknoir/public
+  lifecycle: production
+  system: system:teknoir-system/teknoir-system

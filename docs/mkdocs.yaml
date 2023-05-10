@@ -1,0 +1,10 @@
+site_name: bootstrap-device
+site_description: The TΞꓘN01R device bootstrap scripts.
+repo_url: https://github.com/teknoir/bootstrap-device
+edit_uri: edit/master/docs
+docs_dir: './'
+nav:
+  - Home: index.md
+  - Development: development.md
+plugins:
+  - techdocs-core
