@@ -42,7 +42,7 @@ kind: PriorityClass
 metadata:
   name: high-priority-toe
   namespace: kube-system
-value: 1900000000
+value: 1000000000
 globalDefault: false
 description: "This priority class should be used for toe service pods only."
 
@@ -94,7 +94,7 @@ kind: PriorityClass
 metadata:
   name: high-priority-mqtt
   namespace: kube-system
-value: 1800000000
+value: 900000000
 globalDefault: false
 description: "This priority class should be used for mqtt service pods only."
 
