@@ -297,6 +297,4 @@ WatchdogSec=300
 [Install]
 WantedBy=multi-user.target
 EOL
-  $SUDO chmod 644 /lib/systemd/system/tn-watchdog.service
-  info "Enable and start watchdog service"
-  $SUDO systemctl enable --now tn-watchdog.service
+
