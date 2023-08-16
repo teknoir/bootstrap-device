@@ -13,11 +13,6 @@ if [ ${OS_BUILD} ]; then
     $SUDO sed -i "s#-d /run/systemd#true#g" k3s_installer.sh
 fi
 
-if [ "${INSTALL_CALICO}" = true ]; then
-    info "Calico options for K3s"
-    export INSTALL_K3S_EXEC="${INSTALL_K3S_EXEC} --flannel-backend=none --disable-network-policy --disable=traefik"
-fi
-
 if [ "${USE_DOCKER}" = true ]; then
     info "Use docker container-runtime for K3s"
     export INSTALL_K3S_EXEC="${INSTALL_K3S_EXEC} --docker"

@@ -1,3 +1,5 @@
 .idea
 files
 tn.sh
+bootstrap*
+.python-version
