@@ -13,5 +13,6 @@ set -o noglob
 #   OS_BUILD=true (default: false, for OS builds)
 #   INSECURE=true (default: false, for OS builds, or if you want to run without ssl cert verification)
 #   INSTALL_WATCHDOG=false (default: true, enable or disable the teknoir watchdog service)
-#   USE_DOCKER=false (default: true, enable or disable the use of docker as container runtime for k3s)
+#   USE_DOCKER=true (default: false, enable the use of docker as container runtime for k3sm inly works for k3s < 1.24)
+#   CREATE_USER=true (default: false, create a user for the device without asking)
 

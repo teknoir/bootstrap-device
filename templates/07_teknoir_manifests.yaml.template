@@ -79,6 +79,13 @@ spec:
               value: "/etc/teknoir/roots.pem"
             - name: TOE_PRIVATE_KEY
               value: "/etc/teknoir/rsa_private.pem"
+          resources:
+            requests:
+              memory: "32Mi"
+              cpu: "20m"
+            limits:
+              memory: "128Mi"
+              cpu: "1500m"
           volumeMounts:
             - name: toe-volume
               mountPath: "/etc/teknoir"
@@ -128,6 +135,13 @@ spec:
           imagePullPolicy: Always
           ports:
             - containerPort: 1883
+          resources:
+            requests:
+              memory: "32Mi"
+              cpu: "20m"
+            limits:
+              memory: "128Mi"
+              cpu: "1500m"
           volumeMounts:
             - name: data-volume
               mountPath: "/mosquitto/data"
