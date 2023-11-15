@@ -44,7 +44,7 @@ fi
 EOF
 }
 
-if [ ${OS_BUILD} ]; then
+if [ ${OS_BUILD} ] || [ "${CREATE_USER}" = true ]; then
   setup_user
 else
   if id -u ${_FIRST_USER_NAME} >/dev/null 2>&1; then
