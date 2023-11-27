@@ -6,12 +6,12 @@ if [ "${USE_GPU_ACCEL}" = true ]; then
 
     # Check if the file already exists
     if [ -e "$config_file" ]; then
-        echo "File already exists at $config_file. Exiting."
-        exit 1
+        echo "File already exists at $config_file. Deleting and recreating."
+        $SUDO rm -f "$config_file"
     fi
 
     # Create the file with the specified contents
-    cat <<EOL > "$config_file"
+    $SUDO tee "$config_file" > /dev/null << EOL
 version = 2
 [plugins]
     [plugins."io.containerd.grpc.v1.cri"]
@@ -30,16 +30,23 @@ EOL
 
     info "Containerd configuration file created at $config_file."
 
-    nvidia_runtimeclass_file="/etc/teknoir/nvidia-runtimeclass.yaml"
+    nvidia_runtimeclass_dir="/etc/teknoir"
+
+    # Check if the directory already exists
+    if [ ! -d "$nvidia_runtimeclass_dir" ]; then
+        $SUDO mkdir -p "$nvidia_runtimeclass_dir"
+    fi
+
+    nvidia_runtimeclass_file="$nvidia_runtimeclass_dir/nvidia-runtimeclass.yaml"
 
     # Check if the file already exists
     if [ -e "$nvidia_runtimeclass_file" ]; then
-        echo "File already exists at $nvidia_runtimeclass_file. Exiting."
-        exit 1
+        echo "File already exists at $nvidia_runtimeclass_file. Deleting and recreating."
+        $SUDO rm -f "$nvidia_runtimeclass_file"
     fi
 
     # Create Kubernetes runtime class yaml with the specified contents
-    cat <<EOL > "$nvidia_runtimeclass_file"
+    $SUDO tee "$nvidia_runtimeclass_file" > /dev/null << EOL
 apiVersion: node.k8s.io/v1
 kind: RuntimeClass
 metadata:
@@ -50,5 +57,5 @@ EOL
     info "Runtime class file created at $nvidia_runtimeclass_file."
 
     # Apply runtimeclass manifest
-    kubectl apply -f "$nvidia_runtimeclass_file"
+    $SUDO kubectl apply -f "$nvidia_runtimeclass_file"
 fi
