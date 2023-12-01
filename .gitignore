@@ -3,3 +3,5 @@ files
 tn.sh
 bootstrap*
 .python-version
+teknoir.yaml
+teknoir_v2.yaml
