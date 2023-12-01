@@ -1,3 +1,58 @@
+#!/bin/bash
+set -e
+
+POSITIONAL=()
+while [[ $# -gt 0 ]]
+do
+key="$1"
+
+case $key in
+    -f|--file)
+    export FILE_TO_UPGRADE="$2"
+    shift # past argument
+    shift # past value
+    ;;
+    -h|--help|*)
+    echo "$0 -f(--file) <filetoupgrade>"
+    exit 0
+    ;;
+esac
+done
+
+export FILE_TO_UPGRADE=${FILE_TO_UPGRADE:-"/var/lib/rancher/k3s/server/manifests/teknoir.yaml"}
+echo "FILE_TO_UPGRADE=${FILE_TO_UPGRADE}"
+
+# Check if already upgraded
+if [ $(grep -c "CustomResourceDefinition" ${FILE_TO_UPGRADE}) -ne 0 ]; then
+  echo "Already upgraded"
+  exit 0
+fi
+
+echo "Now upgrading to TOEv2"
+
+AR_SECRET=$(yq e 'select(.kind == "Secret") | select(.metadata.name == "artifact-registry-secret") | select(.metadata.namespace == "default") | .' ${FILE_TO_UPGRADE})
+_AR_DOCKER_SECRET=$(echo "${AR_SECRET}" | yq e '.data.".dockerconfigjson"' -)
+TOE_DEPLOYMENT=$(yq e 'select(.kind == "Deployment") | select(.metadata.name == "toe") | .' ${FILE_TO_UPGRADE})
+_GCP_PROJECT=$(echo "${TOE_DEPLOYMENT}" | yq e '.spec.template.spec.containers[] | select(.name == "toe") | .env[] | select(.name == "TOE_PROJECT") | .value' -)
+_DEVICE_ID=$(echo "${TOE_DEPLOYMENT}" | yq e '.spec.template.spec.containers[] | select(.name == "toe") | .env[] | select(.name == "TOE_DEVICE") | .value' -)
+_IOT_REGISTRY=$(echo "${TOE_DEPLOYMENT}" | yq e '.spec.template.spec.containers[] | select(.name == "toe") | .env[] | select(.name == "TOE_IOT_REGISTRY") | .value' -)
+
+#echo "_AR_DOCKER_SECRET=${_AR_DOCKER_SECRET}"
+#echo "_GCP_PROJECT=${_GCP_PROJECT}"
+#echo "_DEVICE_ID=${_DEVICE_ID}"
+#echo "_IOT_REGISTRY=${_IOT_REGISTRY}"
+
+# Check that vars exist
+if [ -z ${_GCP_PROJECT+x} ]; then fatal "_GCP_PROJECT is unset"; fi
+if [ -z ${_IOT_REGISTRY+x} ]; then fatal "_IOT_REGISTRY is unset"; fi
+if [ -z ${_DEVICE_ID+x} ]; then fatal "_DEVICE_ID is unset"; fi
+if [ -z ${_AR_DOCKER_SECRET+x} ]; then fatal "_AR_DOCKER_SECRET is unset"; fi
+
+chmod 440 /etc/teknoir/rsa_private.pem
+chown 65532:root /etc/teknoir/rsa_private.pem
+
+# THIS IS SAME AS templates/07_teknoir_manifests.yaml.template
+tee ${FILE_TO_UPGRADE}.new > /dev/null << EOL
 ---
 apiVersion: v1
 kind: Secret
@@ -1384,3 +1439,9 @@ spec:
         hostPath:
           # directory location on host
           path: "/etc/teknoir"
+EOL
+
+mv ${FILE_TO_UPGRADE} ${FILE_TO_UPGRADE}.bak
+mv ${FILE_TO_UPGRADE}.new ${FILE_TO_UPGRADE}
+
+echo "Done"
