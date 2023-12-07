@@ -63,88 +63,26 @@ spec:
         app: mqtt
     spec:
       priorityClassName: high-priority-mqtt
-      initContainers:
-        - name: init
-          image: busybox:1.28
-          command: ['sh', '-c', 'echo>/mosquitto/shadow/passwd']
-          volumeMounts:
-            - name: shadow-volume
-              mountPath: "/mosquitto/shadow"
       containers:
         - name: mqtt
-          image: eclipse-mosquitto:latest
+          image: emqx/emqx-edge:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 1883
+            - containerPort: 18083
           resources:
             requests:
-              memory: "32Mi"
-              cpu: "20m"
-            limits:
               memory: "128Mi"
-              cpu: "1500m"
-          volumeMounts:
-            - name: data-volume
-              mountPath: "/mosquitto/data"
-            - name: config-volume
-              mountPath: "/mosquitto/config"
-            - name: shadow-volume
-              mountPath: "/mosquitto/shadow"
-      volumes:
-        - name: data-volume
-          hostPath:
-            path: "/mosquitto/data"
-        - name: config-volume
-          configMap:
-            name: mqtt-config
-        - name: shadow-volume
-          hostPath:
-            path: "/mosquitto/shadow"
-
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: mqtt-config
-  namespace: kube-system
-data:
-  mosquitto.conf: |
-    listener 1883
-    protocol mqtt
-    allow_anonymous true
-    persistence true
-    persistence_location /mosquitto/data
-    persistent_client_expiration 2m
-    password_file /mosquitto/shadow/passwd
-    log_dest stdout
-    log_timestamp true
-    log_timestamp_format %Y-%m-%dT%H:%M:%S
-    log_type error
-    log_type warning
-    log_type notice
-    log_type information
-    log_type subscribe
-    log_type unsubscribe
+              cpu: "150m"
+            limits:
+              memory: "512Mi"
+              cpu: "1000m"
 
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: mqtt
-  namespace: kube-system
-spec:
-  selector:
-    app: mqtt
-  ports:
-    - protocol: TCP
-      port: 1883
-      targetPort: 1883
-
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: mqtt-localhost
   namespace: kube-system
 spec:
   type: NodePort
@@ -155,6 +93,22 @@ spec:
       targetPort: 1883
   selector:
     app: mqtt
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mqtt-dashboard
+  namespace: kube-system
+spec:
+  type: NodePort
+  selector:
+    app: mqtt
+  ports:
+    - nodePort: 31083
+      port: 18083
+      protocol: TCP
+      targetPort: 18083
 
 ---
 apiVersion: scheduling.k8s.io/v1
