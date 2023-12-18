@@ -30,7 +30,7 @@ esac
 done
 
 export ZONE=us-central1-c
-export _GCP_PROJECT=$(if [ "$CONTEXT" == "teknoir-dev" ]; then echo "teknoir-poc"; else echo "teknoir"; fi)
+export _GCP_PROJECT=$(if [ "$CONTEXT" == "gke_teknoir_us-central1-c_teknoir-cluster" ]; then echo "teknoir"; else echo "teknoir-poc"; fi)
 export _DOMAIN=$([ "$_GCP_PROJECT" == 'teknoir' ] && echo "teknoir.cloud" || echo "teknoir.dev")
 export _IOT_REGISTRY=${NAMESPACE}
 export _DEVICE_ID=${DEVICE}
