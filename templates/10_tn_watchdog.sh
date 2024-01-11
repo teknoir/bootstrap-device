@@ -279,7 +279,7 @@ if __name__ == '__main__':
 EOL
   $SUDO chmod 644 /usr/local/lib/teknoir/watchdog.py
 
-  $SUDO tee /etc/systemd/system/tn-watchdog.service > /dev/null << EOL
+  $SUDO tee /lib/systemd/system/tn-watchdog.service > /dev/null << EOL
 [Unit]
 Description=Teknoir Device Watchdog
 After=network.target
