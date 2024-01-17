@@ -1,4 +1,3 @@
-
 ---
 apiVersion: node.k8s.io/v1
 kind: RuntimeClass
@@ -219,16 +218,16 @@ spec:
                             be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
                           type: string
                         metadata:
-                          description: "ObjectMeta is metadata that all persisted
+                          description: ObjectMeta is metadata that all persisted
                             resources must have, which includes all objects users
                             must create. This is a copy of customizable fields from
-                            metav1.ObjectMeta. \n ObjectMeta is embedded in 'Machine.Spec',
+                            metav1.ObjectMeta.  ObjectMeta is embedded in 'Machine.Spec',
                             'MachineDeployment.Template' and 'MachineSet.Template',
                             which are not top-level Kubernetes objects. Given that
                             metav1.ObjectMeta has lots of special cases and read-only
                             fields which end up in the generated CRD validation, having
                             it as a subset simplifies the API and some issues that
-                            can impact user experience. \n During the [upgrade to
+                            can impact user experience.  During the [upgrade to
                             controller-tools@v2](https://github.com/kubernetes-sigs/cluster-api/pull/1054)
                             for v1alpha2, we noticed a failure would occur running
                             Cluster API test suite against the new CRDs, specifically
@@ -236,15 +235,15 @@ spec:
                             string: \"null\"'. The investigation showed that 'controller-tools@v2'
                             behaves differently than its previous version when handling
                             types from [metav1](k8s.io/apimachinery/pkg/apis/meta/v1)
-                            package. \n In more details, we found that embedded (non-top
+                            package.  In more details, we found that embedded (non-top
                             level) types that embedded 'metav1.ObjectMeta' had validation
                             properties, including for 'creationTimestamp' (metav1.Time).
                             The 'metav1.Time' type specifies a custom json marshaller
                             that, when IsZero() is true, returns 'null' which breaks
                             validation because the field isn't marked as nullable.
-                            \n In future versions, controller-tools@v2 might allow
+                             In future versions, controller-tools@v2 might allow
                             overriding the type and validation for embedded types.
-                            When that happens, this hack should be revisited."
+                            When that happens, this hack should be revisited.
                           properties:
                             annotations:
                               additionalProperties:
@@ -256,13 +255,13 @@ spec:
                                 objects. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations'
                               type: object
                             creationTimestamp:
-                              description: "CreationTimestamp is a timestamp representing
+                              description: CreationTimestamp is a timestamp representing
                                 the server time when this object was created. It is
                                 not guaranteed to be set in happens-before order across
                                 separate operations. Clients may not set this value.
-                                It is represented in RFC3339 form and is in UTC. \n
+                                It is represented in RFC3339 form and is in UTC.
                                 Populated by the system. Read-only. Null for lists.
-                                More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata"
+                                More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
                               format: date-time
                               type: string
                             deletionGracePeriodSeconds:
@@ -273,7 +272,7 @@ spec:
                               format: int64
                               type: integer
                             deletionTimestamp:
-                              description: "DeletionTimestamp is RFC 3339 date and
+                              description: DeletionTimestamp is RFC 3339 date and
                                 time at which this resource will be deleted. This
                                 field is set by the server when a graceful deletion
                                 is requested by the user, and is not directly settable
@@ -295,8 +294,8 @@ spec:
                                 timestamp, until an administrator or automated process
                                 can determine the resource is fully terminated. If
                                 not set, graceful deletion of the object has not been
-                                requested. \n Populated by the system when a graceful
-                                deletion is requested. Read-only. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata"
+                                requested.  Populated by the system when a graceful
+                                deletion is requested. Read-only. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
                               format: date-time
                               type: string
                             finalizers:
@@ -322,7 +321,7 @@ spec:
                                 type: string
                               type: array
                             generateName:
-                              description: "GenerateName is an optional prefix, used
+                              description: GenerateName is an optional prefix, used
                                 by the server, to generate a unique name ONLY IF the
                                 Name field has not been provided. If this field is
                                 used, the name returned to the client will be different
@@ -330,10 +329,10 @@ spec:
                                 with a unique suffix. The provided value has the same
                                 validation rules as the Name field, and may be truncated
                                 by the length of the suffix required to make the value
-                                unique on the server. \n If this field is specified
+                                unique on the server.  If this field is specified
                                 and the generated name exists, the server will return
-                                a 409. \n Applied only if Name is not specified. More
-                                info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#idempotency"
+                                a 409.  Applied only if Name is not specified. More
+                                info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#idempotency
                               type: string
                             generation:
                               description: A sequence number representing a specific
@@ -424,13 +423,13 @@ spec:
                                 definition. Cannot be updated. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names#names'
                               type: string
                             namespace:
-                              description: "Namespace defines the space within which
+                              description: Namespace defines the space within which
                                 each name must be unique. An empty namespace is equivalent
                                 to the \"default\" namespace, but \"default\" is the
                                 canonical representation. Not all objects are required
                                 to be scoped to a namespace - the value of this field
-                                for those objects will be empty. \n Must be a DNS_LABEL.
-                                Cannot be updated. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces"
+                                for those objects will be empty.  Must be a DNS_LABEL.
+                                Cannot be updated. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces
                               type: string
                             ownerReferences:
                               description: List of objects depended by this object.
@@ -451,7 +450,7 @@ spec:
                                     type: string
                                   blockOwnerDeletion:
                                     description: If true, AND if the owner has the
-                                      "foregroundDeletion" finalizer, then the owner
+                                      \"foregroundDeletion\" finalizer, then the owner
                                       cannot be deleted from the key-value store until
                                       this reference is removed. See https://kubernetes.io/docs/concepts/architecture/garbage-collection/#foreground-deletion
                                       for how the garbage collector interacts with
@@ -485,27 +484,27 @@ spec:
                                 x-kubernetes-map-type: atomic
                               type: array
                             resourceVersion:
-                              description: "An opaque value that represents the internal
+                              description: An opaque value that represents the internal
                                 version of this object that can be used by clients
                                 to determine when objects have changed. May be used
                                 for optimistic concurrency, change detection, and
                                 the watch operation on a resource or set of resources.
                                 Clients must treat these values as opaque and passed
                                 unmodified back to the server. They may only be valid
-                                for a particular resource or set of resources. \n
+                                for a particular resource or set of resources.
                                 Populated by the system. Read-only. Value must be
-                                treated as opaque by clients and . More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency"
+                                treated as opaque by clients and . More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency
                               type: string
                             selfLink:
                               description: 'Deprecated: selfLink is a legacy read-only
                                 field that is no longer populated by the system.'
                               type: string
                             uid:
-                              description: "UID is the unique in time and space value
+                              description: UID is the unique in time and space value
                                 for this object. It is typically generated by the
                                 server on successful creation of a resource and is
-                                not allowed to change on PUT operations. \n Populated
-                                by the system. Read-only. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names#uids"
+                                not allowed to change on PUT operations.  Populated
+                                by the system. Read-only. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names#uids
                               type: string
                           type: object
                         spec:
@@ -629,16 +628,16 @@ spec:
                             be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
                           type: string
                         metadata:
-                          description: "ObjectMeta is metadata that all persisted
+                          description: ObjectMeta is metadata that all persisted
                             resources must have, which includes all objects users
                             must create. This is a copy of customizable fields from
-                            metav1.ObjectMeta. \n ObjectMeta is embedded in 'Machine.Spec',
+                            metav1.ObjectMeta.  ObjectMeta is embedded in 'Machine.Spec',
                             'MachineDeployment.Template' and 'MachineSet.Template',
                             which are not top-level Kubernetes objects. Given that
                             metav1.ObjectMeta has lots of special cases and read-only
                             fields which end up in the generated CRD validation, having
                             it as a subset simplifies the API and some issues that
-                            can impact user experience. \n During the [upgrade to
+                            can impact user experience.  During the [upgrade to
                             controller-tools@v2](https://github.com/kubernetes-sigs/cluster-api/pull/1054)
                             for v1alpha2, we noticed a failure would occur running
                             Cluster API test suite against the new CRDs, specifically
@@ -646,15 +645,15 @@ spec:
                             string: \"null\"'. The investigation showed that 'controller-tools@v2'
                             behaves differently than its previous version when handling
                             types from [metav1](k8s.io/apimachinery/pkg/apis/meta/v1)
-                            package. \n In more details, we found that embedded (non-top
+                            package.  In more details, we found that embedded (non-top
                             level) types that embedded 'metav1.ObjectMeta' had validation
                             properties, including for 'creationTimestamp' (metav1.Time).
                             The 'metav1.Time' type specifies a custom json marshaller
                             that, when IsZero() is true, returns 'null' which breaks
                             validation because the field isn't marked as nullable.
-                            \n In future versions, controller-tools@v2 might allow
+                             In future versions, controller-tools@v2 might allow
                             overriding the type and validation for embedded types.
-                            When that happens, this hack should be revisited."
+                            When that happens, this hack should be revisited.
                           properties:
                             annotations:
                               additionalProperties:
@@ -666,13 +665,13 @@ spec:
                                 objects. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations'
                               type: object
                             creationTimestamp:
-                              description: "CreationTimestamp is a timestamp representing
+                              description: CreationTimestamp is a timestamp representing
                                 the server time when this object was created. It is
                                 not guaranteed to be set in happens-before order across
                                 separate operations. Clients may not set this value.
-                                It is represented in RFC3339 form and is in UTC. \n
+                                It is represented in RFC3339 form and is in UTC.
                                 Populated by the system. Read-only. Null for lists.
-                                More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata"
+                                More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
                               format: date-time
                               type: string
                             deletionGracePeriodSeconds:
@@ -683,7 +682,7 @@ spec:
                               format: int64
                               type: integer
                             deletionTimestamp:
-                              description: "DeletionTimestamp is RFC 3339 date and
+                              description: DeletionTimestamp is RFC 3339 date and
                                 time at which this resource will be deleted. This
                                 field is set by the server when a graceful deletion
                                 is requested by the user, and is not directly settable
@@ -705,8 +704,8 @@ spec:
                                 timestamp, until an administrator or automated process
                                 can determine the resource is fully terminated. If
                                 not set, graceful deletion of the object has not been
-                                requested. \n Populated by the system when a graceful
-                                deletion is requested. Read-only. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata"
+                                requested.  Populated by the system when a graceful
+                                deletion is requested. Read-only. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
                               format: date-time
                               type: string
                             finalizers:
@@ -732,7 +731,7 @@ spec:
                                 type: string
                               type: array
                             generateName:
-                              description: "GenerateName is an optional prefix, used
+                              description: GenerateName is an optional prefix, used
                                 by the server, to generate a unique name ONLY IF the
                                 Name field has not been provided. If this field is
                                 used, the name returned to the client will be different
@@ -740,10 +739,10 @@ spec:
                                 with a unique suffix. The provided value has the same
                                 validation rules as the Name field, and may be truncated
                                 by the length of the suffix required to make the value
-                                unique on the server. \n If this field is specified
+                                unique on the server.  If this field is specified
                                 and the generated name exists, the server will return
-                                a 409. \n Applied only if Name is not specified. More
-                                info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#idempotency"
+                                a 409.  Applied only if Name is not specified. More
+                                info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#idempotency
                               type: string
                             generation:
                               description: A sequence number representing a specific
@@ -834,13 +833,13 @@ spec:
                                 definition. Cannot be updated. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names#names'
                               type: string
                             namespace:
-                              description: "Namespace defines the space within which
+                              description: Namespace defines the space within which
                                 each name must be unique. An empty namespace is equivalent
                                 to the \"default\" namespace, but \"default\" is the
                                 canonical representation. Not all objects are required
                                 to be scoped to a namespace - the value of this field
-                                for those objects will be empty. \n Must be a DNS_LABEL.
-                                Cannot be updated. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces"
+                                for those objects will be empty.  Must be a DNS_LABEL.
+                                Cannot be updated. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces
                               type: string
                             ownerReferences:
                               description: List of objects depended by this object.
@@ -895,27 +894,27 @@ spec:
                                 x-kubernetes-map-type: atomic
                               type: array
                             resourceVersion:
-                              description: "An opaque value that represents the internal
+                              description: An opaque value that represents the internal
                                 version of this object that can be used by clients
                                 to determine when objects have changed. May be used
                                 for optimistic concurrency, change detection, and
                                 the watch operation on a resource or set of resources.
                                 Clients must treat these values as opaque and passed
                                 unmodified back to the server. They may only be valid
-                                for a particular resource or set of resources. \n
+                                for a particular resource or set of resources.
                                 Populated by the system. Read-only. Value must be
-                                treated as opaque by clients and . More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency"
+                                treated as opaque by clients and . More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency
                               type: string
                             selfLink:
                               description: 'Deprecated: selfLink is a legacy read-only
                                 field that is no longer populated by the system.'
                               type: string
                             uid:
-                              description: "UID is the unique in time and space value
+                              description: UID is the unique in time and space value
                                 for this object. It is typically generated by the
                                 server on successful creation of a resource and is
-                                not allowed to change on PUT operations. \n Populated
-                                by the system. Read-only. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names#uids"
+                                not allowed to change on PUT operations.  Populated
+                                by the system. Read-only. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names#uids
                               type: string
                           type: object
                         spec:
