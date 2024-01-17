@@ -85,7 +85,7 @@ spec:
               value: "${_DEVICE_ID}"
             - name: TOE_CA_CERT
               value: "/etc/teknoir/roots.pem"
-            - name: TOE_PRIVATE_KEY
+             - name: TOE_PRIVATE_KEY
               value: "/etc/teknoir/rsa_private.pem"
           volumeMounts:
             - name: toe-volume

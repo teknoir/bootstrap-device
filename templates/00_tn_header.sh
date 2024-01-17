@@ -14,5 +14,4 @@ set -o noglob
 #   INSECURE=true (default: false, for OS builds, or if you want to run without ssl cert verification)
 #   INSTALL_WATCHDOG=false (default: true, enable or disable the teknoir watchdog service)
 #   USE_DOCKER=false (default: true, enable or disable the use of docker as container runtime for k3s)
-#   USE_GPU_ACCEL=false (default: true, enable or disable the use of GPU acceleration in containerd)
 
