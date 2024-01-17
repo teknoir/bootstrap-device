@@ -30,7 +30,7 @@ esac
 done
 
 export ZONE=us-central1-c
-export _GCP_PROJECT=$(if [ "$CONTEXT" == "teknoir-dev" ]; then echo "teknoir-poc"; else echo "teknoir"; fi)
+export _GCP_PROJECT=$(if [ "$CONTEXT" == "gke_teknoir_us-central1-c_teknoir-cluster" ]; then echo "teknoir"; else echo "teknoir-poc"; fi)
 export _DOMAIN=$([ "$_GCP_PROJECT" == 'teknoir' ] && echo "teknoir.cloud" || echo "teknoir.dev")
 export _IOT_REGISTRY=${NAMESPACE}
 export _DEVICE_ID=${DEVICE}
@@ -43,10 +43,10 @@ if [ -z ${DEVICE_MANIFEST+x} ] || [ "${DEVICE_MANIFEST}" = "" ]; then
   echo "DEVICE_MANIFEST not found"
   exit 1
 fi
-export _RSA_PRIVATE="$(echo "$DEVICE_MANIFEST" | yq eval .spec.keys.data.rsa_private - | base64 --decode --input -)"
-export _FIRST_USER_NAME="$(echo "$DEVICE_MANIFEST" | yq eval .spec.keys.data.username - | base64 --decode --input -)"
-export _FIRST_USER_PASS="$(echo "$DEVICE_MANIFEST" | yq eval .spec.keys.data.userpassword - | base64 --decode --input -)"
-export _FIRST_USER_KEY="$(echo "$DEVICE_MANIFEST" | yq eval .spec.keys.data.publicsshkey - | base64 --decode --input -)"
+export _RSA_PRIVATE="$(echo "$DEVICE_MANIFEST" | yq eval .spec.keys.data.rsa_private - | base64 -d)"
+export _FIRST_USER_NAME="$(echo "$DEVICE_MANIFEST" | yq eval .spec.keys.data.username - | base64 -d)"
+export _FIRST_USER_PASS="$(echo "$DEVICE_MANIFEST" | yq eval .spec.keys.data.userpassword - | base64 -d)"
+export _FIRST_USER_KEY="$(echo "$DEVICE_MANIFEST" | yq eval .spec.keys.data.publicsshkey - | base64 -d)"
 
 export AR_SECRET="$(kubectl --context $CONTEXT -n $NAMESPACE get secret artifact-registry-secret -o yaml)"
 export _AR_DOCKER_SECRET="$(echo "${AR_SECRET}" | yq eval '.data[".dockerconfigjson"]' -)"
