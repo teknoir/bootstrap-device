@@ -747,7 +747,7 @@ spec:
           mountPath: /etc/teknoir
         command:
         - /manager
-        image: gcr.io/teknoir/toe:toe_v2
+        image: us-docker.pkg.dev/teknoir/gcr.io/toe:toe_v2
         livenessProbe:
           httpGet:
             path: /healthz
