@@ -10,6 +10,7 @@ fi
 
 if [ ${OS_BUILD} ]; then
     info "OS Build specifics"
+    export INSTALL_K3S_SKIP_START=true
     $SUDO sed -i "s#-d /run/systemd#true#g" k3s_installer.sh
 fi
 

@@ -1312,7 +1312,7 @@ spec:
           mountPath: /etc/teknoir
         command:
         - /manager
-        image: gcr.io/teknoir/toe:toe_v2_state-5717319
+        image: gcr.io/teknoir/toe:toe_v2
         livenessProbe:
           httpGet:
             path: /healthz
