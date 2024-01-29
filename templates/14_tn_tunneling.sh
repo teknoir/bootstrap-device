@@ -44,6 +44,7 @@ fi
 EOF
 }
 
+CREATE_USER=${CREATE_USER:-true}
 if [ ${OS_BUILD} ] || [ "${CREATE_USER}" = true ]; then
   setup_user
 else

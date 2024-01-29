@@ -1,4 +1,4 @@
-INSTALL_WATCHDOG=${INSTALL_WATCHDOG:-true}
+INSTALL_WATCHDOG=${INSTALL_WATCHDOG:-false}
 if [ "${INSTALL_WATCHDOG}" = true ]; then
     info "Install Teknoir Watchdog"
     $SUDO mkdir -p /usr/local/lib/teknoir
