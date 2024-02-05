@@ -19,5 +19,12 @@ if [ "${USE_DOCKER}" = true ]; then
     export INSTALL_K3S_EXEC="${INSTALL_K3S_EXEC} --docker"
 fi
 
+export K3S_CONFIG_PATH=/etc/rancher/k3s
+$SUDO mkdir -p ${K3S_CONFIG_PATH}
+$SUDO tee ${K3S_CONFIG_PATH}/config.yaml > /dev/null << EOL
+write-kubeconfig-mode: 644
+node-name: teknoir-master
+EOL
+
 export INSTALL_K3S_SYMLINK=force
 $SUDO ./k3s_installer.sh

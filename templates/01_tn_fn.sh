@@ -14,7 +14,7 @@ fatal()
 }
 
 SUDO=''
-if [ ! ${EUID} = 0 ] && [ -z "${OS_BUILD+x}" ]; then
+if [ "$(id -u)" -ne 0 ] && [ -z "${OS_BUILD+x}" ]; then
     info "Please be ready to enter the device´s sudo password:"
     SUDO='sudo -H'
 fi
