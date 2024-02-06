@@ -22,7 +22,6 @@ fi
 export K3S_CONFIG_PATH=/etc/rancher/k3s
 $SUDO mkdir -p ${K3S_CONFIG_PATH}
 $SUDO tee ${K3S_CONFIG_PATH}/config.yaml > /dev/null << EOL
-write-kubeconfig-mode: 644
 node-name: teknoir-master
 EOL
 
