@@ -22,6 +22,10 @@ case $key in
     shift # past argument
     shift # past value
     ;;
+    -s|--skip-upload)
+    export SKIP_UPLOAD=1
+    shift # past argument
+    ;;
     -h|--help|*)
     echo "$0 -c(--context) <kubectl-context> -n(--namespace) <namespace> -d(--device) <device-name>"
     exit 0
@@ -64,6 +68,11 @@ source build_bootstrap_script.sh
 
 BOOTSTRAP_FILE=${_BOOTSTRAP_FILE}
 build_bootstrap_script ${BOOTSTRAP_FILE} ${TEMPLATES_PATH}
+
+if [ -n "${SKIP_UPLOAD}" ]; then
+  echo "Skipping upload of drop-in script to secure bucket"
+  exit 0
+fi
 
 BUCKET="${NAMESPACE}.${_DOMAIN}"
 gsutil cp ${BOOTSTRAP_FILE} gs://${BUCKET}/downloads/${DEVICE}/${BOOTSTRAP_FILE}
