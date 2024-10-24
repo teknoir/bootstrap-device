@@ -754,7 +754,6 @@ spec:
       securityContext:
         runAsNonRoot: true
       serviceAccountName: teknoir-controller-manager
-      priorityClassName: high-priority-toe
       terminationGracePeriodSeconds: 10
       volumes:
       - name: toe-volume
