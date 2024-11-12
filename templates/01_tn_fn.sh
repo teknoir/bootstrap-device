@@ -13,11 +13,8 @@ fatal()
     exit 1
 }
 
-SUDO=''
-if [ "$(id -u)" -ne 0 ] && [ -z "${OS_BUILD+x}" ]; then
-    info "Please be ready to enter the device´s sudo password:"
-    SUDO='sudo -H'
-fi
+# Exit if not running as root
+[ $(id -u) -eq 0 ] || fatal 'You must run this script as root'
 
 DOWNLOADER=
 # --- download ---
