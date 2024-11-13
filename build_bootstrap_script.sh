@@ -6,6 +6,7 @@ build_bootstrap_script() {
   BOOTSTRAP_FILE=$1
   TEMPLATES_PATH=$2
   echo "Writing bootstrap script to ${BOOTSTRAP_FILE} using path ${TEMPLATES_PATH}"
+  echo -n '' > ${BOOTSTRAP_FILE}
 
 	for i in {0..9}{0..9}; do
 	  for file in ${TEMPLATES_PATH}/${i}*.sh; do
