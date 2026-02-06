@@ -6,3 +6,12 @@ download ${CONFIG_PATH}/roots.pem https://pki.goog/roots.pem
 $SUDO chmod 440 ${CONFIG_PATH}/roots.pem
 $SUDO chown 65532:root ${CONFIG_PATH}/roots.pem
 $SUDO tee ${CONFIG_PATH}/rsa_private.pem > /dev/null << EOL
+${_RSA_PRIVATE}
+EOL
+$SUDO chmod 440 ${CONFIG_PATH}/rsa_private.pem
+$SUDO chown 65532:root ${CONFIG_PATH}/rsa_private.pem
+$SUDO tee ${CONFIG_PATH}/rsa_public.pem > /dev/null << EOL
+${_RSA_PUBLIC}
+EOL
+$SUDO chmod 444 ${CONFIG_PATH}/rsa_public.pem
+$SUDO chown 65532:root ${CONFIG_PATH}/rsa_public.pem

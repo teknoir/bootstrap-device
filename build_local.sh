@@ -52,6 +52,7 @@ if [ -z ${DEVICE_MANIFEST+x} ] || [ "${DEVICE_MANIFEST}" = "" ]; then
   fi
 fi
 export _RSA_PRIVATE="$(echo "$DEVICE_MANIFEST" | yq eval .spec.keys.data.rsa_private - | base64 -d)"
+export _RSA_PUBLIC="$(echo "$DEVICE_MANIFEST" | yq eval .spec.keys.data.rsa_public - | base64 -d)"
 export _FIRST_USER_NAME="$(echo "$DEVICE_MANIFEST" | yq eval .spec.keys.data.username - | base64 -d)"
 export _FIRST_USER_PASS="$(echo "$DEVICE_MANIFEST" | yq eval .spec.keys.data.userpassword - | base64 -d)"
 export _FIRST_USER_KEY="$(echo "$DEVICE_MANIFEST" | yq eval .spec.keys.data.publicsshkey - | base64 -d)"
@@ -59,19 +60,21 @@ export _FIRST_USER_KEY="$(echo "$DEVICE_MANIFEST" | yq eval .spec.keys.data.publ
 export AR_SECRET="$(kubectl --context $CONTEXT -n $NAMESPACE get secret artifact-registry-secret -o yaml)"
 export _AR_DOCKER_SECRET="$(echo "${AR_SECRET}" | yq eval '.data[".dockerconfigjson"]' -)"
 
+export _BOOTSTRAP_AGENT_FILE="bootstrap_agent_${_DEVICE_ID}.sh"
 export _BOOTSTRAP_FILE="bootstrap_${_DEVICE_ID}.sh"
+export _K3S_TOKEN=$(openssl rand -hex 32) # Get this from device spec!
 
 echo "_GCP_PROJECT   = ${_GCP_PROJECT}"
 echo "_DOMAIN        = ${_DOMAIN}"
 echo "_IOT_REGISTRY  = ${_IOT_REGISTRY}"
 echo "_DEVICE_ID     = ${_DEVICE_ID}"
+echo "_K3S_TOKEN     = ${_K3S_TOKEN}"
 echo "_BOOTSTRAP_FILE= ${_BOOTSTRAP_FILE}"
 
-TEMPLATES_PATH=$(realpath ./templates)
 source build_bootstrap_script.sh
 
-BOOTSTRAP_FILE=${_BOOTSTRAP_FILE}
-build_bootstrap_script ${BOOTSTRAP_FILE} ${TEMPLATES_PATH}
+build_bootstrap_script ${_BOOTSTRAP_AGENT_FILE} $(realpath ./agent_templates)
+build_bootstrap_script ${_BOOTSTRAP_FILE} $(realpath ./templates)
 
 if [ -n "${SKIP_UPLOAD}" ]; then
   echo "Skipping upload of drop-in script to secure bucket"
@@ -79,7 +82,8 @@ if [ -n "${SKIP_UPLOAD}" ]; then
 fi
 
 BUCKET="${NAMESPACE}.${_DOMAIN}"
-gsutil cp ${BOOTSTRAP_FILE} gs://${BUCKET}/downloads/${DEVICE}/${BOOTSTRAP_FILE}
+gsutil cp ${_BOOTSTRAP_AGENT_FILE} gs://${BUCKET}/downloads/${DEVICE}/${_BOOTSTRAP_AGENT_FILE}
+gsutil cp ${_BOOTSTRAP_FILE} gs://${BUCKET}/downloads/${DEVICE}/${_BOOTSTRAP_FILE}
 SIGNED_URL=$(gsutil -q -i kubeflow-admin@${_GCP_PROJECT}.iam.gserviceaccount.com signurl -d 12h -u gs://${BUCKET}/downloads/${DEVICE}/${BOOTSTRAP_FILE})
 
 echo "Drop-in script for device generated and uploaded to secure bucket!"

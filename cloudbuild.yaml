@@ -13,11 +13,13 @@ steps:
       - '_DEVICE_ID=${_DEVICE_ID}'
       - '_DOMAIN=${_DOMAIN}'
       - '_RSA_PRIVATE=${_RSA_PRIVATE}'
+      - '_RSA_PUBLIC=${_RSA_PUBLIC}'
       - '_FIRST_USER_NAME=${_FIRST_USER_NAME}'
       - '_FIRST_USER_PASS=${_FIRST_USER_PASS}'
       - '_FIRST_USER_KEY=${_FIRST_USER_KEY}'
       - '_BOOTSTRAP_FILE=${_BOOTSTRAP_FILE}'
       - '_AR_DOCKER_SECRET=${_AR_DOCKER_SECRET}'
+      - '_K3S_TOKEN=${_K3S_TOKEN}'
 
 artifacts:
   objects:
