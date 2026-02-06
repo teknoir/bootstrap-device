@@ -5,7 +5,7 @@ on_sudo() {
 }
 
 setup_user() {
-  mkdir -p /home/${_FIRST_USER_NAME}
+  $SUDO mkdir -p /home/${_FIRST_USER_NAME}
   if ! id -u ${_FIRST_USER_NAME} >/dev/null 2>&1; then
     $SUDO adduser --disabled-password --gecos "" ${_FIRST_USER_NAME}
   fi
@@ -44,7 +44,8 @@ fi
 EOF
 }
 
-if [ ${OS_BUILD} ]; then
+CREATE_USER=${CREATE_USER:-ask}
+if [ ${OS_BUILD} ] || [ "${CREATE_USER}" = true ]; then
   setup_user
 else
   if id -u ${_FIRST_USER_NAME} >/dev/null 2>&1; then
