@@ -711,6 +711,8 @@ spec:
           value: "${_DEVICE_ID}"
         - name: TOE_PROJECT
           value: "${_GCP_PROJECT}"
+        - name: TOE_DOMAIN
+          value: "${_DOMAIN}"
         - name: TOE_IOT_REGISTRY
           value: "${_IOT_REGISTRY}"
         - name: TOE_DEVICE
