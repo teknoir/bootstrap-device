@@ -120,7 +120,7 @@ if [ ${OS_BUILD} ]; then
     $SUDO sed -i "s#-d /run/systemd#true#g" k3s_installer.sh
 fi
 
-export INSTALL_K3S_EXEC="server --token ${_K3S_TOKEN} --tls-san ${_DEVICE_ID}.${_DOMAIN} --tls-san 10.0.0.10"
+export INSTALL_K3S_EXEC="server --disable=traefik --token ${_K3S_TOKEN} --tls-san ${_DEVICE_ID}.${_DOMAIN} --tls-san 10.0.0.10"
 if [ "${USE_DOCKER}" = true ]; then
     info "Use docker container-runtime for K3s"
     export INSTALL_K3S_EXEC="${INSTALL_K3S_EXEC} --docker"

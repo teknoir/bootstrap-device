@@ -11,12 +11,15 @@ build_bootstrap_script() {
 	for i in {0..9}{0..9}; do
 	  for file in ${TEMPLATES_PATH}/${i}*.sh; do
 	    cat ${file} >> ${BOOTSTRAP_FILE}
+	    echo "" >> ${BOOTSTRAP_FILE}
 	  done
 	  for file in ${TEMPLATES_PATH}/${i}*.yaml; do
       cat ${file} >> ${BOOTSTRAP_FILE}
+      echo "" >> ${BOOTSTRAP_FILE}
     done
     for file in ${TEMPLATES_PATH}/${i}*.template; do
       eval "echo \"$(cat ${file})\"" >> ${BOOTSTRAP_FILE}
+      echo "" >> ${BOOTSTRAP_FILE}
     done
 	done
 }
