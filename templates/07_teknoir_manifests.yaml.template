@@ -76,7 +76,7 @@ spec:
           imagePullPolicy: Always
           env:
            - name: EMQX_MQTT__MAX_PACKET_SIZE
-             value: 1MB
+             value: 3MB
           ports:
             - containerPort: 1883
             - containerPort: 18083
@@ -726,7 +726,7 @@ spec:
           mountPath: /etc/teknoir
         command:
         - /manager
-        image: us-docker.pkg.dev/teknoir/gcr.io/toe:toe_v2
+        image: us-docker.pkg.dev/teknoir/gcr.io/toe:teknoir-online
         imagePullPolicy: Always
         livenessProbe:
           httpGet:
