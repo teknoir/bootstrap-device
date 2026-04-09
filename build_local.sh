@@ -33,8 +33,8 @@ case $key in
 esac
 done
 
-export ZONE=us-central1-c
-export _GCP_PROJECT=$(if [ "$CONTEXT" == "gke_teknoir-poc_us-central1-c_teknoir-dev-cluster" ]; then echo "teknoir-poc"; else echo "teknoir"; fi)
+#export ZONE=us-central1-c
+export _GCP_PROJECT="teknoir"
 case "${CONTEXT}" in
   *teknoir-dev*|*teknoir-poc*)
     _DOMAIN="teknoir.dev"
@@ -42,15 +42,15 @@ case "${CONTEXT}" in
   *rtx2000-pro-bw-se.teknoir*)
     _DOMAIN="teknoir.online"
     ;;
-  *)
+  *r415*)
     _DOMAIN="teknoir.cloud"
     ;;
 esac
 export _IOT_REGISTRY=${NAMESPACE}
 export _DEVICE_ID=${DEVICE}
 
-gcloud config set project ${_GCP_PROJECT}
-gcloud config set compute/zone ${ZONE}
+#gcloud config set project ${_GCP_PROJECT}
+#gcloud config set compute/zone ${ZONE}
 
 export DEVICE_MANIFEST="$(kubectl --context $CONTEXT -n $NAMESPACE get device.teknoir.org $DEVICE -o yaml)"
 if [ -z ${DEVICE_MANIFEST+x} ] || [ "${DEVICE_MANIFEST}" = "" ]; then
@@ -91,11 +91,12 @@ if [ -n "${SKIP_UPLOAD}" ]; then
   exit 0
 fi
 
-BUCKET="${NAMESPACE}.${_DOMAIN}"
-gsutil cp ${_BOOTSTRAP_AGENT_FILE} gs://${BUCKET}/downloads/${DEVICE}/${_BOOTSTRAP_AGENT_FILE}
-gsutil cp ${_BOOTSTRAP_FILE} gs://${BUCKET}/downloads/${DEVICE}/${_BOOTSTRAP_FILE}
-SIGNED_URL=$(gsutil -q -i kubeflow-admin@${_GCP_PROJECT}.iam.gserviceaccount.com signurl -d 12h -u gs://${BUCKET}/downloads/${DEVICE}/${BOOTSTRAP_FILE})
+#BUCKET="${NAMESPACE}.${_DOMAIN}"
+#gsutil cp ${_BOOTSTRAP_AGENT_FILE} gs://${BUCKET}/downloads/${DEVICE}/${_BOOTSTRAP_AGENT_FILE}
+#gsutil cp ${_BOOTSTRAP_FILE} gs://${BUCKET}/downloads/${DEVICE}/${_BOOTSTRAP_FILE}
+#SIGNED_URL=$(gsutil -q -i kubeflow-admin@${_GCP_PROJECT}.iam.gserviceaccount.com signurl -d 12h -u gs://${BUCKET}/downloads/${DEVICE}/${BOOTSTRAP_FILE})
 
-echo "Drop-in script for device generated and uploaded to secure bucket!"
-echo "Run the following command on the device:"
-echo "bash <(curl -LsS \"https${SIGNED_URL#*https}\")"
+echo "Drop-in script for device generated here: ${_BOOTSTRAP_FILE}"
+echo "Drop in agent script to connect a k3s not as a cluster here: ${_BOOTSTRAP_AGENT_FILE}"
+#echo "Run the following command on the device:"
+#echo "bash <(curl -LsS \"https${SIGNED_URL#*https}\")"

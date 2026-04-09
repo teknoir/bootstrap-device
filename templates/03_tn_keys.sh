@@ -15,3 +15,4 @@ ${_RSA_PUBLIC}
 EOL
 $SUDO chmod 444 ${CONFIG_PATH}/rsa_public.pem
 $SUDO chown 65532:root ${CONFIG_PATH}/rsa_public.pem
+$SUDO chgrp 65532 /etc/teknoir

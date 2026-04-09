@@ -105,6 +105,18 @@ for TYPE in client server request-header etcd/peer etcd/server; do
 done
 
 info "Install Rancher K3s"
+mkdir -p /etc/rancher/k3s
+mkdir -p /opt/k3s
+cat >/etc/rancher/k3s/config.yaml <<'EOF'
+data-dir: /opt/k3s
+disable:
+  - traefik
+EOF
+cat >/etc/sysctl.d/teknoir.inotify.conf <<'EOF'
+fs.inotify.max_user_instances=1024
+EOF
+sysctl --system
+
 download k3s_installer.sh https://get.k3s.io
 $SUDO chmod +x k3s_installer.sh
 
