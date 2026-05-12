@@ -5,3 +5,5 @@ bootstrap*
 .python-version
 teknoir.yaml
 teknoir_v2.yaml
+
+update_image_pull_secret_on device_teknoir_cloud.sh
