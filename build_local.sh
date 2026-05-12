@@ -36,10 +36,10 @@ done
 #export ZONE=us-central1-c
 export _GCP_PROJECT="teknoir"
 case "${CONTEXT}" in
-  *teknoir-dev*|*teknoir-poc*)
+  *teknoir-dev*)
     _DOMAIN="teknoir.dev"
     ;;
-  *rtx2000-pro-bw-se.teknoir*)
+  *teknoir-poc-eks*)
     _DOMAIN="teknoir.online"
     ;;
   *r415*)
@@ -67,7 +67,7 @@ export _FIRST_USER_NAME="$(echo "$DEVICE_MANIFEST" | yq eval .spec.keys.data.use
 export _FIRST_USER_PASS="$(echo "$DEVICE_MANIFEST" | yq eval .spec.keys.data.userpassword - | base64 -d)"
 export _FIRST_USER_KEY="$(echo "$DEVICE_MANIFEST" | yq eval .spec.keys.data.publicsshkey - | base64 -d)"
 
-export AR_SECRET="$(kubectl --context $CONTEXT -n $NAMESPACE get secret artifact-registry-secret -o yaml)"
+export AR_SECRET="$(kubectl --context $CONTEXT -n $NAMESPACE get secret ghcr-token -o yaml)"
 export _AR_DOCKER_SECRET="$(echo "${AR_SECRET}" | yq eval '.data[".dockerconfigjson"]' -)"
 
 export _BOOTSTRAP_AGENT_FILE="bootstrap_agent_${_DEVICE_ID}.sh"
