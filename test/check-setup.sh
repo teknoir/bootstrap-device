@@ -4,6 +4,10 @@
 #   - a device certificate without keyCertSign (what Backstage generated) becomes a proper root
 #   - the device files are not modified, every bundle verifies through a root-only trust store
 #   - a second run keeps the PKI; on an initialised data dir nothing is touched
+#   - the re-issued root has a new serial (OpenSSL 1.1.1 ignores -set_serial in `x509 -signkey`)
+#   - a failing openssl step makes the setup fail and leaves no server/tls behind (errexit is
+#     ignored in the callers' if/|| context)
+#   - an initialised data dir with a foreign CA that k3s refuses stops the setup ("must not be upgraded")
 # The docker matrix against real k3s releases is test/k3s-ca/run.sh (see docs/development.md).
 # Usage: test/check-setup.sh
 set -eu
@@ -48,5 +52,26 @@ echo "K10x::server:y" > "$W/data/server/token"
 run tn_k3s_ca_setup && ok "setup on an initialised data dir" || bad "setup on an initialised data dir failed"
 d3=$(cd "$T" && find . -type f | sort | xargs sha256sum | sha256sum)
 [ "$d1" = "$d3" ] && ok "initialised data dir untouched" || bad "initialised data dir changed"
+
+ser0=$(openssl x509 -in "$W/etc/rsa_public.pem" -noout -serial); ser1=$(openssl x509 -in "$T/root-ca.pem" -noout -serial)
+[ "$ser0" != "$ser1" ] && ok "re-issued root has a new serial" || bad "re-issued root keeps the serial of the device certificate ($ser1)"
+
+# a failing `openssl ca` must fail the setup and install nothing
+REAL=$(command -v openssl)
+mkdir -p "$W/fakebin"
+printf '#!/bin/sh\n[ "$1" = ca ] && { echo "wrapper: openssl ca fails" >&2; exit 1; }\nexec %s "$@"\n' "$REAL" > "$W/fakebin/openssl"
+chmod 755 "$W/fakebin/openssl"
+rm -rf "$W/data"; mkdir -p "$W/data"
+if PATH="$W/fakebin:$PATH" run tn_k3s_ca_setup; then bad "setup succeeded although openssl ca failed"; else ok "setup fails when openssl ca fails"; fi
+[ ! -e "$W/data/server/tls/server-ca.crt" ] && ok "no partial server/tls installed" || bad "partial server/tls installed"
+
+# a foreign CA (no key for it here) without keyCertSign, k3s already started: stop, do not upgrade
+rm -rf "$W/data"; mkdir -p "$W/data/server/tls"
+openssl req -x509 -nodes -newkey rsa:2048 -keyout "$W/other.key" -out "$W/other.pem" -days 365 -subj "/CN=other" -batch 2>/dev/null
+cat "$W/other.pem" "$W/other.pem" > "$W/data/server/tls/server-ca.crt"
+echo "K10x::server:y" > "$W/data/server/token"
+if run tn_k3s_ca_setup; then bad "setup continued on an unusable foreign CA"; else
+  grep -q 'must not be upgraded' "$W/out.log" && ok "setup stops on an unusable foreign CA" || bad "no stop message for the foreign CA"
+fi
 
 [ "$fail" = 0 ] && echo "setup smoke test passed" || { echo "setup smoke test FAILED" >&2; exit 1; }
