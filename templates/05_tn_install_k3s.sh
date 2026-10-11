@@ -8,14 +8,29 @@ else
     info "Installing k3s ${INSTALL_K3S_VERSION}"
 fi
 
-# Order: (1) the k3s release policy and the cgroup v1 kubelet flag, (2) the CA, (3) the k3s installer.
-# (1) comes first: it refuses before anything on the device is changed, and the kubelet flag is in place
-# when the CA step restarts k3s (a k3s that a cgroup v1 host made exit restarts itself in a loop, and has
-# to be up for rotate-ca). A re-run keeps the installed k3s (unless TN_K3S_UPGRADE=true) and sets
-# fail-cgroupv1=false on cgroup v1 hosts, which Kubernetes >= 1.35 would refuse (library:
+# Order: (0) the arguments of the k3s installer, (1) the k3s release policy and the cgroup v1 kubelet flag,
+# (2) the CA, (3) the k3s installer.
+# (0) comes first because (1) reads INSTALL_K3S_EXEC (tn_inst_cgroup_configured_elsewhere): it must see
+# what the installer will get. A fail-cgroupv1 that the caller put there is "set by the device itself"
+# for the library, which then removes its drop-in; if this script rebuilt the variable afterwards without
+# the caller's value, the installer would get no flag at all and a k3s >= v1.35 would not start on a
+# cgroup v1 device. A value the caller gave is therefore kept, after ours (as the cli template does).
+# (1) comes before the CA step: it refuses before anything on the device is changed, and the kubelet flag
+# is in place when the CA step restarts k3s (a k3s that a cgroup v1 device made exit restarts itself in a
+# loop, and has to be up for rotate-ca). A re-run keeps the installed k3s (unless TN_K3S_UPGRADE=true) and
+# sets fail-cgroupv1=false on cgroup v1 hosts, which Kubernetes >= 1.35 would refuse (library:
 # 04_tn_k3s_install_lib.sh, vendored from teknoir/cli). The data dir is looked up first, the way the CA step
-# does it: a k3s datastore there decides whether a k3s whose version cannot be read is installed over.
+# does it: a k3s datastore there decides whether a k3s whose version cannot be read is installed over. A
+# data dir that disagrees with config.yaml is refused right there, before (1) changes anything.
+# BEGIN install-k3s-exec
+export INSTALL_K3S_EXEC="server --disable=traefik --token ${_K3S_TOKEN} --tls-san ${_DEVICE_ID}.${_DOMAIN} --tls-san 10.0.0.10${INSTALL_K3S_EXEC:+ ${INSTALL_K3S_EXEC}}"
+if [ "${USE_DOCKER}" = true ]; then
+    info "Use docker container-runtime for K3s"
+    export INSTALL_K3S_EXEC="${INSTALL_K3S_EXEC} --docker"
+fi
+# END install-k3s-exec
 tn_ca_resolve_datadir
+tn_ca_require_consistent_datadir
 tn_inst_prepare server
 
 # The k3s root CA is the device certificate (rsa_public.pem), re-issued from the
@@ -57,12 +72,6 @@ if [ ${OS_BUILD} ]; then
     info "OS Build specifics"
     export INSTALL_K3S_SKIP_START=true
     $SUDO sed -i "s#-d /run/systemd#true#g" k3s_installer.sh
-fi
-
-export INSTALL_K3S_EXEC="server --disable=traefik --token ${_K3S_TOKEN} --tls-san ${_DEVICE_ID}.${_DOMAIN} --tls-san 10.0.0.10"
-if [ "${USE_DOCKER}" = true ]; then
-    info "Use docker container-runtime for K3s"
-    export INSTALL_K3S_EXEC="${INSTALL_K3S_EXEC} --docker"
 fi
 
 export K3S_CONFIG_PATH=/etc/rancher/k3s

@@ -298,4 +298,41 @@ printf 'data-dir: %s/other\n' "$W" > "$W/dcfg/config.yaml"
 printf '[Service]\nExecStart=/usr/local/bin/k3s \\\n    server \\\n\t%s \\\n\t%s\n' "'--data-dir'" "'$W/data'" > "$W/dcfg.service"
 drun TN_K3S_CONFIG_DIR="$W/dcfg" TN_K3S_UNIT_FILE="$W/dcfg.service" CONFIG_PATH="$W/etc" PRODUCT=k3s _DEVICE_ID=dev1 _DOMAIN=test.local DATA_DIR= -- tn_k3s_ca_setup && bad "a data dir that disagrees with config.yaml was accepted" || { grep -q "config.yaml sets data-dir: $W/other" "$W/out.log" && grep -q 'were not changed' "$W/out.log" && [ ! -e "$W/data" ] && [ ! -e "$W/other" ] && ok "a data dir that disagrees with config.yaml stops the setup before anything is created" || { bad "data dir mismatch: wrong stop"; cat "$W/out.log" >&2; }; }
 
+# INSTALL_K3S_EXEC is final before tn_inst_prepare reads it. The library takes a fail-cgroupv1 in
+# INSTALL_K3S_EXEC as "set by the device itself" and removes its drop-in; the script used to rebuild the
+# variable AFTER that, without the caller's value: the installer got no flag, and a k3s >= v1.35 did not
+# start on a cgroup v1 device. These cases run the real text of templates/05_tn_install_k3s.sh from
+# "# BEGIN install-k3s-exec" through "tn_inst_prepare server".
+sed -n '/^# BEGIN install-k3s-exec$/,/^tn_inst_prepare server$/p' "$ROOT/templates/05_tn_install_k3s.sh" > "$W/prologue.sh"
+grep -q '^tn_inst_prepare server$' "$W/prologue.sh" && grep -q '^tn_ca_require_consistent_datadir$' "$W/prologue.sh" || bad "could not extract the prologue of 05_tn_install_k3s.sh"
+rm -rf "$W/fake" "$W/pcfg" "$W/pdata"; mkdir -p "$W/fake"
+ik3s v1.36.5+k3s1
+PENV="K3S_BIN=$W/fake/k3s TN_K3S_CONFIG_DIR=$W/pcfg DATA_DIR=$W/pdata TN_K3S_UNIT_FILE=$W/no-unit PRODUCT=k3s TN_CGROUP_FSTYPE=tmpfs _K3S_TOKEN=tok _DEVICE_ID=dev1 _DOMAIN=test.local INSTALL_K3S_VERSION=v1.36.5+k3s1 TN_K3S_PIN_SOURCE=default"
+PD="$W/pcfg/config.yaml.d/99-teknoir-cgroupv1.yaml"
+BASEEXEC="server --disable=traefik --token tok --tls-san dev1.test.local --tls-san 10.0.0.10"
+if drun $PENV "INSTALL_K3S_EXEC=--kubelet-arg=fail-cgroupv1=false" -- ". '$W/prologue.sh'; echo \"EXEC=\$INSTALL_K3S_EXEC\""; then
+  got=$(sed -n 's/^EXEC=//p' "$W/out.log")
+  case $got in *fail-cgroupv1=false*) ok "caller's fail-cgroupv1 in INSTALL_K3S_EXEC (cgroup v1, k3s 1.36) reaches the installer" ;; *) bad "the flag is lost: INSTALL_K3S_EXEC='$got'"; cat "$W/out.log" >&2 ;; esac
+  case $got in "$BASEEXEC"*) ok "... after the arguments of the script" ;; *) bad "INSTALL_K3S_EXEC lost the arguments of the script: '$got'" ;; esac
+  { [ -s "$PD" ] || grep -q 'set by the device itself (INSTALL_K3S_EXEC)' "$W/out.log"; } && ok "... and the library took it as the device's own setting only because the installer gets it" || bad "neither the flag in INSTALL_K3S_EXEC nor the drop-in"
+else bad "prologue failed with the caller's INSTALL_K3S_EXEC"; cat "$W/out.log" >&2; fi
+rm -rf "$W/pcfg" "$W/pdata"
+if drun $PENV -- ". '$W/prologue.sh'; echo \"EXEC=\$INSTALL_K3S_EXEC\""; then
+  got=$(sed -n 's/^EXEC=//p' "$W/out.log")
+  [ "$got" = "$BASEEXEC" ] && ok "no INSTALL_K3S_EXEC from the caller: exactly the arguments of the script" || bad "INSTALL_K3S_EXEC='$got'"
+  [ -s "$PD" ] && ok "... and the drop-in is written (cgroup v1, k3s 1.36)" || bad "no drop-in without a flag from the caller"
+else bad "prologue failed"; cat "$W/out.log" >&2; fi
+rm -rf "$W/pcfg" "$W/pdata"
+if drun $PENV INSTALL_K3S_EXEC=--node-label=a=b USE_DOCKER=true -- ". '$W/prologue.sh'; echo \"EXEC=\$INSTALL_K3S_EXEC\""; then
+  got=$(sed -n 's/^EXEC=//p' "$W/out.log")
+  [ "$got" = "$BASEEXEC --node-label=a=b --docker" ] && ok "the caller's other arguments are kept, --docker is added last" || bad "INSTALL_K3S_EXEC='$got'"
+else bad "prologue failed with USE_DOCKER"; cat "$W/out.log" >&2; fi
+# a data dir that disagrees with config.yaml is refused before tn_inst_prepare changes anything (no drop-in)
+rm -rf "$W/pcfg" "$W/pdata"; mkdir -p "$W/pcfg"; printf 'data-dir: %s/other\n' "$W" > "$W/pcfg/config.yaml"
+if drun $PENV -- ". '$W/prologue.sh'"; then bad "a data dir that disagrees with config.yaml was accepted by the prologue"
+else
+  grep -q "config.yaml sets data-dir: $W/other" "$W/out.log" && ! grep -q 'Checking the k3s release' "$W/out.log" && [ ! -e "$PD" ] && ok "a data dir mismatch is refused before the release step changes anything (no drop-in)" || { bad "data dir mismatch: not refused first"; cat "$W/out.log" >&2; }
+fi
+rm -rf "$W/pcfg" "$W/pdata" "$W/fake"; mkdir -p "$W/fake"
+
 [ "$fail" = 0 ] && echo "setup smoke test passed" || { echo "setup smoke test FAILED" >&2; exit 1; }

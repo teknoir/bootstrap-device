@@ -99,6 +99,8 @@ grep -q 'tn_inst_config_ensure ${K3S_CONFIG_PATH}/config.yaml node-name' "$OUT/s
 # server order: release policy + cgroup flag, then the CA step, then the installer, then the publication
 pl=$(grep -n '^tn_inst_prepare server$' "$OUT/server.sh" | head -1 | cut -d: -f1)
 rd=$(grep -n '^tn_ca_resolve_datadir$' "$OUT/server.sh" | head -1 | cut -d: -f1)
+gd=$(grep -n '^tn_ca_require_consistent_datadir$' "$OUT/server.sh" | head -1 | cut -d: -f1)
+ex=$(grep -n '^export INSTALL_K3S_EXEC="server' "$OUT/server.sh" | head -1 | cut -d: -f1)
 ca=$(grep -n '^tn_k3s_ca_setup$' "$OUT/server.sh" | head -1 | cut -d: -f1)
 ins=$(grep -n '^\$SUDO ./k3s_installer.sh' "$OUT/server.sh" | head -1 | cut -d: -f1)
 pub=$(grep -n '^tn_inst_publish_release$' "$OUT/server.sh" | head -1 | cut -d: -f1)
@@ -106,6 +108,14 @@ if [ -n "$rd" ] && [ -n "$pl" ] && [ -n "$ca" ] && [ -n "$ins" ] && [ -n "$pub" 
   ok "server: resolve data dir < tn_inst_prepare < tn_k3s_ca_setup < installer < tn_inst_publish_release"
 else bad "server: wrong order (datadir=$rd prepare=$pl ca=$ca installer=$ins publish=$pub)"; fi
 if [ "$(grep -c '^tn_inst_prepare server$' "$OUT/server.sh")" = 1 ]; then ok "server: tn_inst_prepare is called once"; else bad "server: tn_inst_prepare is called more than once"; fi
+# INSTALL_K3S_EXEC is final before tn_inst_prepare reads it (a fail-cgroupv1 of the caller must reach the installer),
+# built once, keeps the caller's value, and the data dir guard runs before tn_inst_prepare changes anything
+if [ -n "$ex" ] && [ -n "$rd" ] && [ -n "$gd" ] && [ -n "$pl" ] && [ "$ex" -lt "$rd" ] && [ "$rd" -lt "$gd" ] && [ "$gd" -lt "$pl" ]; then
+  ok "server: INSTALL_K3S_EXEC < resolve data dir < data dir guard < tn_inst_prepare"
+else bad "server: wrong order (exec=$ex datadir=$rd guard=$gd prepare=$pl)"; fi
+[ "$(grep -c '^ *export INSTALL_K3S_EXEC="server' "$OUT/server.sh")" = 1 ] && ok "server: INSTALL_K3S_EXEC is built once" || bad "server: INSTALL_K3S_EXEC is built more than once"
+grep -q '^export INSTALL_K3S_EXEC="server .*10\.0\.0\.10${INSTALL_K3S_EXEC:+ ${INSTALL_K3S_EXEC}}"$' "$OUT/server.sh" && ok "server: the caller's INSTALL_K3S_EXEC is kept" || bad "server: INSTALL_K3S_EXEC of the caller is dropped"
+grep -q '^tn_ca_require_consistent_datadir()' "$OUT/server.sh" && ok "server: embeds the data dir guard" || bad "server: data dir guard not embedded"
 grep -q '^tn_inst_publish_release$' "$OUT/agent.sh" && bad "agent: publishes a release" || ok "agent: does not publish a release"
 # who chose the k3s release (an agent follows its server unless a release was asked for)
 for f in server agent; do

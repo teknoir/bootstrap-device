@@ -58,9 +58,13 @@ tool `sh tn-k3s-ca.sh check|remediate`, see the cli troubleshooting page.
   `https://<K3S_URL>/static/teknoir/k3s-version`. A release asked for with `INSTALL_K3S_VERSION` is installed
   if it is not newer than the server's, refused if it is. If the release of the server cannot be read the
   agent script stops, unless a release was asked for or `TN_K3S_FORCE=true`; a server bootstrapped by an
-  older script publishes nothing: run its script again (it keeps k3s). OS builds install the pin.
-- **Order in the server script**: `tn_ca_resolve_datadir`, `tn_inst_prepare server` (release policy and
-  kubelet flag), `tn_k3s_ca_setup` (CA; may restart k3s), the installer, `tn_inst_publish_release`. The flag is
+  older script publishes nothing, so a **new** agent stops until the server script is run again (it keeps k3s,
+  publishes the release and repairs a legacy CA: `rotate-ca` and a restart of k3s) or `INSTALL_K3S_VERSION` is given.
+  OS builds install the pin.
+- **Order in the server script**: the arguments of the installer (`INSTALL_K3S_EXEC`, which keeps a value the
+  caller gave: the library reads it, so it must be final first), `tn_ca_resolve_datadir` and
+  `tn_ca_require_consistent_datadir`, `tn_inst_prepare server` (release policy and kubelet flag),
+  `tn_k3s_ca_setup` (CA; may restart k3s), the installer, `tn_inst_publish_release`. The flag is
   in place before the CA step restarts k3s, so a k3s that a cgroup v1 host made exit is up for `rotate-ca`.
   A data dir that disagrees with `config.yaml` stops the script before anything is changed. Restarts wait up
   to `TN_K3S_SERVICE_TIMEOUT` (600 s) plus a 120 s grace.

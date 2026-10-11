@@ -1,4 +1,4 @@
-# vendored from teknoir/cli pkg/templates/scripts/tn-k3s-install.sh @ 24ed29372174bbd96999f8184a089db7fba389ee
+# vendored from teknoir/cli pkg/templates/scripts/tn-k3s-install.sh @ e5fa8adeb2736cec518eb0f381eb20a79dc02a28
 #!/bin/sh
 # tn-k3s-install.sh - what a Teknoir bootstrap script decides before it runs the k3s installer:
 # which k3s release (a re-run keeps what is installed), and whether the kubelet must be told that
