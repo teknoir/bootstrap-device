@@ -73,6 +73,29 @@ n=$(grep -c 'info "Prepare K3s CA Certs"' "$OUT/server.sh" || true)
 [ "$n" = 1 ] && ok "server: 'Prepare K3s CA Certs' appears once" || bad "server: 'Prepare K3s CA Certs' appears $n times"
 grep -q '\${DATA_DIR}/server/manifests' "$OUT/server.sh" && ok "server: manifests go to the resolved DATA_DIR" || bad "server: manifests path is not DATA_DIR"
 
+# the k3s install library (release policy + cgroup v1 flag + config.yaml) in both scripts, used before the installer
+for f in server agent; do
+  grep -q '^tn_inst_prepare()' "$OUT/$f.sh" && ok "$f: embeds the install library" || bad "$f: install library not embedded"
+  grep -q "^tn_inst_prepare $f\$" "$OUT/$f.sh" && ok "$f: calls tn_inst_prepare $f" || bad "$f: tn_inst_prepare $f call missing"
+  l=$(grep -n '^tn_inst_prepare()' "$OUT/$f.sh" | head -1 | cut -d: -f1)
+  c=$(grep -n "^tn_inst_prepare $f\$" "$OUT/$f.sh" | head -1 | cut -d: -f1)
+  v=$(grep -n '^    export INSTALL_K3S_VERSION="${TN_K3S_VERSION}"$' "$OUT/$f.sh" | head -1 | cut -d: -f1)
+  i=$(grep -n '^\$SUDO ./k3s_installer.sh' "$OUT/$f.sh" | head -1 | cut -d: -f1)
+  if [ -n "$l" ] && [ -n "$c" ] && [ -n "$v" ] && [ -n "$i" ] && [ "$l" -lt "$v" ] && [ "$v" -lt "$c" ] && [ "$c" -lt "$i" ]; then
+    ok "$f: library < pin < tn_inst_prepare < k3s installer"
+  else bad "$f: wrong order (lib=$l pin=$v call=$c installer=$i)"; fi
+  if python3 - "$ROOT/$([ $f = server ] && echo templates/04_tn_k3s_install_lib.sh || echo agent_templates/02_tn_k3s_install_lib.sh)" "$OUT/$f.sh" <<'PY'
+import sys
+lib = open(sys.argv[1], 'rb').read()
+out = open(sys.argv[2], 'rb').read()
+sys.exit(0 if lib in out else 1)
+PY
+  then ok "$f: vendored install library embedded byte-for-byte"; else bad "$f: vendored install library not embedded byte-for-byte"; fi
+done
+# the server no longer replaces an existing config.yaml
+if grep -q 'tee \${K3S_CONFIG_PATH}/config.yaml' "$OUT/server.sh"; then bad "server: still overwrites config.yaml"; else ok "server: config.yaml is not overwritten"; fi
+grep -q 'tn_inst_config_ensure ${K3S_CONFIG_PATH}/config.yaml node-name' "$OUT/server.sh" && ok "server: node-name through tn_inst_config_ensure" || bad "server: tn_inst_config_ensure missing"
+
 # The assembled library must be the vendored file, unmodified (.sh files are cat'ed raw, no eval).
 if python3 - "$ROOT/templates/04_tn_k3s_ca_lib.sh" "$OUT/server.sh" <<'PY'
 import sys

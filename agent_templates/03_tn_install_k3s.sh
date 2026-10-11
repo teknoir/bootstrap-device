@@ -41,6 +41,9 @@ else
     info "Installing k3s ${INSTALL_K3S_VERSION}"
 fi
 
+# A re-run keeps the installed k3s (unless TN_K3S_UPGRADE=true) and sets fail-cgroupv1=false on cgroup v1
+# hosts, which Kubernetes >= 1.35 would refuse (library: 02_tn_k3s_install_lib.sh, vendored from teknoir/cli).
+tn_inst_prepare agent
 export INSTALL_K3S_SYMLINK=force
 $SUDO ./k3s_installer.sh
 

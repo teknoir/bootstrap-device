@@ -7,6 +7,8 @@
 #
 # Checks:
 #   templates/04_tn_k3s_ca_lib.sh  == 1 header line + cli pkg/templates/scripts/tn-k3s-ca.sh
+#   templates/04_tn_k3s_install_lib.sh, agent_templates/02_tn_k3s_install_lib.sh
+#                                  == 1 header line + cli pkg/templates/scripts/tn-k3s-install.sh
 #   test/k3s-ca/**                 == cli test/k3s-ca/** (local-only files are allowed)
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -15,7 +17,7 @@ CLI_DIR=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --cli) CLI_DIR="$2"; shift 2 ;;
-    -h|--help) sed -n '2,12p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,14p' "$0"; exit 0 ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
 done
@@ -48,20 +50,33 @@ list_tree() {
 fail=0
 echo "vendored from $REPO @ $SHA"
 
-# --- library ---
-fetch "$LIB_PATH" "$TMP/lib.upstream"
-LOCAL_LIB="$ROOT/templates/04_tn_k3s_ca_lib.sh"
-EXPECT_HDR="# vendored from teknoir/cli $LIB_PATH @ $SHA"
-if [ "$(sed -n 1p "$LOCAL_LIB")" != "$EXPECT_HDR" ]; then
-  echo "DIFF: library header line 1 is not: $EXPECT_HDR" >&2; fail=1
-fi
-tail -n +2 "$LOCAL_LIB" > "$TMP/lib.local"
-if cmp -s "$TMP/lib.local" "$TMP/lib.upstream"; then
-  echo "ok:   templates/04_tn_k3s_ca_lib.sh is identical to cli $LIB_PATH at ${SHA:0:12}"
+# --- libraries ---
+# check_lib CLI_PATH LOCAL_FILE...: each local file is 1 header line + the cli file, byte for byte
+check_lib() {
+  local path=$1 local_file
+  shift
+  fetch "$path" "$TMP/lib.upstream"
+  for local_file in "$@"; do
+    local abs="$ROOT/$local_file" hdr="# vendored from teknoir/cli $path @ $SHA"
+    if [ ! -f "$abs" ]; then echo "DIFF: $local_file is missing" >&2; fail=1; continue; fi
+    if [ "$(sed -n 1p "$abs")" != "$hdr" ]; then
+      echo "DIFF: $local_file header line 1 is not: $hdr" >&2; fail=1
+    fi
+    tail -n +2 "$abs" > "$TMP/lib.local"
+    if cmp -s "$TMP/lib.local" "$TMP/lib.upstream"; then
+      echo "ok:   $local_file is identical to cli $path at ${SHA:0:12}"
+    else
+      echo "DIFF: $local_file differs from cli $path at ${SHA:0:12}" >&2
+      diff -u "$TMP/lib.upstream" "$TMP/lib.local" | head -40 >&2 || true
+      fail=1
+    fi
+  done
+}
+check_lib "$LIB_PATH" templates/04_tn_k3s_ca_lib.sh
+if [ -n "${LIB2_PATH:-}" ]; then
+  check_lib "$LIB2_PATH" templates/04_tn_k3s_install_lib.sh agent_templates/02_tn_k3s_install_lib.sh
 else
-  echo "DIFF: templates/04_tn_k3s_ca_lib.sh differs from cli $LIB_PATH at ${SHA:0:12}" >&2
-  diff -u "$TMP/lib.upstream" "$TMP/lib.local" | head -40 >&2 || true
-  fail=1
+  echo "VENDORED_FROM must define LIB2_PATH (the k3s install library)" >&2; fail=1
 fi
 
 # --- harness ---

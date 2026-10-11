@@ -49,11 +49,11 @@ fi
 
 export K3S_CONFIG_PATH=/etc/rancher/k3s
 $SUDO mkdir -p ${K3S_CONFIG_PATH}
-$SUDO tee ${K3S_CONFIG_PATH}/config.yaml > /dev/null << EOL
-node-name: teknoir-master
-EOL
+# A re-run must not replace a config.yaml that already exists (it may hold keys of the device owner,
+# like a kubelet-arg): the Teknoir keys are added when they are missing (tn_inst_config_ensure).
+tn_inst_config_ensure ${K3S_CONFIG_PATH}/config.yaml node-name "node-name: teknoir-master"
 if [ "${DATA_DIR}" != "/var/lib/rancher/k3s" ]; then
-    echo "data-dir: ${DATA_DIR}" | $SUDO tee -a ${K3S_CONFIG_PATH}/config.yaml > /dev/null
+    tn_inst_config_ensure ${K3S_CONFIG_PATH}/config.yaml data-dir "data-dir: ${DATA_DIR}"
 fi
 
 if [ "${TN_K3S_VERSION}" = stable ]; then
@@ -63,5 +63,8 @@ else
     info "Installing k3s ${INSTALL_K3S_VERSION}"
 fi
 
+# A re-run keeps the installed k3s (unless TN_K3S_UPGRADE=true) and sets fail-cgroupv1=false on cgroup v1
+# hosts, which Kubernetes >= 1.35 would refuse (library: 04_tn_k3s_install_lib.sh, vendored from teknoir/cli).
+tn_inst_prepare server
 export INSTALL_K3S_SYMLINK=force
 $SUDO ./k3s_installer.sh

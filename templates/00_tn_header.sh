@@ -18,6 +18,11 @@ umask 027
 #   CREATE_USER=false (default: ask, create a user for the device without asking)
 #   INSTALL_K3S_VERSION=v1.xx.y+k3sN (default: TN_K3S_VERSION below; "stable" = whatever the k3s installer
 #                          picks as stable today, the old behaviour)
+#   TN_K3S_UPGRADE=true (default: false; a re-run KEEPS the k3s version that is installed. true lets
+#                          TN_K3S_VERSION replace it: never a downgrade, never more than one minor version)
+#   TN_K3S_FORCE=true (default: false; allows an upgrade over more than one minor version)
+#   TN_K3S_CGROUPV1=true|false (default: detected; on cgroup v1 with k3s >= v1.35 the kubelet gets
+#                          fail-cgroupv1=false, see /etc/rancher/k3s/config.yaml.d/99-teknoir-cgroupv1.yaml)
 #   TN_K3S_CA_AUTO_REMEDIATE=false (default: true; a re-run on a device bootstrapped with the old
 #                          root CA repairs it before k3s is touched. false stops with advice instead)
 #   DATA_DIR=/path (default: the data dir k3s uses on the device, found like k3s finds it: ExecStart of
@@ -25,5 +30,6 @@ umask 027
 
 # The k3s release to install: the stable channel when this was written (https://update.k3s.io/v1-release/channels)
 # and the release the CA tests in test/k3s-ca prove. A server and its agents must run the same release.
-# k3s cannot be downgraded: do not set this below what a device already runs.
+# This is the release for a NEW device: a device that already has k3s keeps its version (TN_K3S_UPGRADE=true
+# replaces it; a downgrade is always refused).
 TN_K3S_VERSION="${INSTALL_K3S_VERSION:-v1.36.5+k3s1}"
