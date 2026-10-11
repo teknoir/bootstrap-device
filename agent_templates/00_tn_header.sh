@@ -30,6 +30,9 @@ umask 027
 # replaces it; a downgrade is always refused).
 # Who chose the k3s release: the person who runs this script (INSTALL_K3S_VERSION in the environment) or
 # the default below. An agent installs the release of its server unless one was asked for.
+# A channel given as INSTALL_K3S_VERSION (stable, latest, testing, v1.35) counts as asked (env): the library moves it
+# to INSTALL_K3S_CHANNEL, resolves it during an upgrade and applies the same downgrade and one-minor checks
+# (an unresolvable channel is refused unless TN_K3S_FORCE=true). INSTALL_K3S_CHANNEL alone is not read here.
 if [ -n "${INSTALL_K3S_VERSION:-}" ]; then TN_K3S_PIN_SOURCE=env; else TN_K3S_PIN_SOURCE=default; fi
 export TN_K3S_PIN_SOURCE
 TN_K3S_VERSION="${INSTALL_K3S_VERSION:-v1.36.5+k3s1}"

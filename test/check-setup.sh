@@ -364,11 +364,11 @@ execafter() { # NAME EXPECTED_EXEC ENV... : tn_inst_prepare twice (a re-run in o
     drun $UPC "$@" -- 'tn_inst_prepare server; tn_inst_finish' && [ -s "$PD" ] || bad "$_n: no drop-in after tn_inst_finish"
   else bad "$_n: prepare failed"; cat "$W/out.log" >&2; fi
 }
-execafter "1.30 + channel upgrade" "server --tls-san a $FLAG" INSTALL_K3S_VERSION= INSTALL_K3S_CHANNEL=stable "INSTALL_K3S_EXEC=server --tls-san a"
-execafter "1.30 + channel upgrade, empty command" "$FLAG" INSTALL_K3S_VERSION= INSTALL_K3S_CHANNEL=latest
+execafter "1.30 + channel upgrade" "server --tls-san a $FLAG" INSTALL_K3S_VERSION= INSTALL_K3S_CHANNEL=stable TN_K3S_FORCE=true "INSTALL_K3S_EXEC=server --tls-san a"
+execafter "1.30 + channel upgrade, empty command" "$FLAG" INSTALL_K3S_VERSION= INSTALL_K3S_CHANNEL=latest TN_K3S_FORCE=true
 execafter "1.30 + TN_K3S_FORCE jump to v1.36.5" "agent $FLAG" INSTALL_K3S_VERSION=v1.36.5+k3s1 TN_K3S_FORCE=true INSTALL_K3S_EXEC=agent
 execafter "1.30 + exact v1.31.14 (accepts the flag, does not need it on its first start)" "server" INSTALL_K3S_VERSION=v1.31.14+k3s1 INSTALL_K3S_EXEC=server
-execafter "1.30 + channel upgrade, the caller has the flag already" "server $FLAG" INSTALL_K3S_VERSION= INSTALL_K3S_CHANNEL=stable "INSTALL_K3S_EXEC=server $FLAG"
+execafter "1.30 + channel upgrade, the caller has the flag already" "server $FLAG" INSTALL_K3S_VERSION= INSTALL_K3S_CHANNEL=stable TN_K3S_FORCE=true "INSTALL_K3S_EXEC=server $FLAG"
 # the real prologue of the server script: the flag is on the command that the installer gets
 rm -rf "$W/pcfg" "$W/pdata"
 if drun $UPC PRODUCT=k3s _K3S_TOKEN=tok _DEVICE_ID=dev1 _DOMAIN=test.local TN_K3S_UNIT_FILE=$W/no-unit INSTALL_K3S_VERSION=v1.36.5+k3s1 TN_K3S_FORCE=true -- ". '$W/prologue.sh'; echo \"EXEC=\$INSTALL_K3S_EXEC\""; then
