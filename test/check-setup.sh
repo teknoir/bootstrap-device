@@ -314,7 +314,7 @@ if drun $PENV "INSTALL_K3S_EXEC=--kubelet-arg=fail-cgroupv1=false" -- ". '$W/pro
   got=$(sed -n 's/^EXEC=//p' "$W/out.log")
   case $got in *fail-cgroupv1=false*) ok "caller's fail-cgroupv1 in INSTALL_K3S_EXEC (cgroup v1, k3s 1.36) reaches the installer" ;; *) bad "the flag is lost: INSTALL_K3S_EXEC='$got'"; cat "$W/out.log" >&2 ;; esac
   case $got in "$BASEEXEC"*) ok "... after the arguments of the script" ;; *) bad "INSTALL_K3S_EXEC lost the arguments of the script: '$got'" ;; esac
-  { [ -s "$PD" ] || grep -q 'set by the device itself (INSTALL_K3S_EXEC)' "$W/out.log"; } && ok "... and the library took it as the device's own setting only because the installer gets it" || bad "neither the flag in INSTALL_K3S_EXEC nor the drop-in"
+  [ -s "$PD" ] && grep -q 'stays until the installer' "$W/out.log" && ok "... and the drop-in is written too: the flag reaches the unit only when the installer has run" || bad "no drop-in for a flag that is only in INSTALL_K3S_EXEC"
 else bad "prologue failed with the caller's INSTALL_K3S_EXEC"; cat "$W/out.log" >&2; fi
 rm -rf "$W/pcfg" "$W/pdata"
 if drun $PENV -- ". '$W/prologue.sh'; echo \"EXEC=\$INSTALL_K3S_EXEC\""; then
@@ -327,6 +327,30 @@ if drun $PENV INSTALL_K3S_EXEC=--node-label=a=b USE_DOCKER=true -- ". '$W/prolog
   got=$(sed -n 's/^EXEC=//p' "$W/out.log")
   [ "$got" = "$BASEEXEC --node-label=a=b --docker" ] && ok "the caller's other arguments are kept, --docker is added last" || bad "INSTALL_K3S_EXEC='$got'"
 else bad "prologue failed with USE_DOCKER"; cat "$W/out.log" >&2; fi
+# the drop-in survives tn_inst_prepare when the caller's flag is only in INSTALL_K3S_EXEC (the CA step restarts k3s
+# before the installer writes the unit); a persistent config file with the flag replaces it; none: it is written
+rm -rf "$W/pcfg" "$W/pdata"; mkdir -p "$W/pcfg/config.yaml.d"; drun $PENV -- ". '$W/prologue.sh'" || bad "prologue failed (first run)"; [ -s "$PD" ] || bad "no drop-in from the first run"; before=$(sha256sum "$PD")
+if drun $PENV "INSTALL_K3S_EXEC=--kubelet-arg=fail-cgroupv1=false" -- ". '$W/prologue.sh'"; then
+  [ -f "$PD" ] && [ "$before" = "$(sha256sum "$PD")" ] && ! grep -q 'Removed' "$W/out.log" && ok "drop-in present + the caller's flag in INSTALL_K3S_EXEC: the drop-in remains after tn_inst_prepare" || { bad "drop-in removed before the CA step and the installer"; cat "$W/out.log" >&2; }
+else bad "prologue failed (drop-in + INSTALL_K3S_EXEC)"; cat "$W/out.log" >&2; fi
+printf 'kubelet-arg+:\n  - fail-cgroupv1=false\n' > "$W/pcfg/config.yaml.d/10-user.yaml"
+if drun $PENV "INSTALL_K3S_EXEC=--kubelet-arg=fail-cgroupv1=false" -- ". '$W/prologue.sh'"; then
+  [ ! -e "$PD" ] && [ -s "$W/pcfg/config.yaml.d/10-user.yaml" ] && ok "the flag in config.yaml.d/10-user.yaml (k3s reads it): our drop-in is removed" || { bad "drop-in kept next to a persistent setting"; cat "$W/out.log" >&2; }
+else bad "prologue failed (config.yaml.d/10-user.yaml)"; cat "$W/out.log" >&2; fi
+rm -rf "$W/pcfg" "$W/pdata"
+if drun $PENV INSTALL_K3S_EXEC=--node-label=a=b -- ". '$W/prologue.sh'"; then
+  [ -s "$PD" ] && ok "no flag from the device: the drop-in is written" || bad "no drop-in without a flag from the device"
+else bad "prologue failed (no caller flag)"; cat "$W/out.log" >&2; fi
+# an installed k3s older than v1.31 that is upgraded: no flag before the installer, tn_inst_finish writes it
+rm -rf "$W/pcfg" "$W/pdata" "$W/fake"; mkdir -p "$W/fake"; ik3s v1.30.14+k3s1
+UPG="K3S_BIN=$W/fake/k3s TN_K3S_CONFIG_DIR=$W/pcfg DATA_DIR=$W/pdata TN_CGROUP_FSTYPE=tmpfs INSTALL_K3S_VERSION=v1.31.4+k3s1 TN_K3S_UPGRADE=true TN_K3S_PIN_SOURCE=flag"
+if drun $UPG -- 'tn_inst_prepare server'; then
+  [ ! -e "$PD" ] && ok "installed k3s 1.30, upgrade to 1.31: no flag before the installer" || bad "flag written for an installed k3s 1.30"
+else bad "prepare failed (upgrade from 1.30)"; cat "$W/out.log" >&2; fi
+if drun $UPG -- 'tn_inst_prepare server; tn_inst_finish'; then
+  [ -s "$PD" ] && ok "... and tn_inst_finish (after the installer) writes it" || bad "tn_inst_finish did not write the flag"
+else bad "finish failed"; cat "$W/out.log" >&2; fi
+rm -rf "$W/pcfg" "$W/pdata" "$W/fake"; mkdir -p "$W/fake"; ik3s v1.36.5+k3s1
 # a data dir that disagrees with config.yaml is refused before tn_inst_prepare changes anything (no drop-in)
 rm -rf "$W/pcfg" "$W/pdata"; mkdir -p "$W/pcfg"; printf 'data-dir: %s/other\n' "$W" > "$W/pcfg/config.yaml"
 if drun $PENV -- ". '$W/prologue.sh'"; then bad "a data dir that disagrees with config.yaml was accepted by the prologue"

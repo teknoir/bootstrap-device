@@ -104,9 +104,13 @@ ex=$(grep -n '^export INSTALL_K3S_EXEC="server' "$OUT/server.sh" | head -1 | cut
 ca=$(grep -n '^tn_k3s_ca_setup$' "$OUT/server.sh" | head -1 | cut -d: -f1)
 ins=$(grep -n '^\$SUDO ./k3s_installer.sh' "$OUT/server.sh" | head -1 | cut -d: -f1)
 pub=$(grep -n '^tn_inst_publish_release$' "$OUT/server.sh" | head -1 | cut -d: -f1)
+fin=$(grep -n '^tn_inst_finish$' "$OUT/server.sh" | head -1 | cut -d: -f1)
 if [ -n "$rd" ] && [ -n "$pl" ] && [ -n "$ca" ] && [ -n "$ins" ] && [ -n "$pub" ] && [ "$rd" -lt "$pl" ] && [ "$pl" -lt "$ca" ] && [ "$ca" -lt "$ins" ] && [ "$ins" -lt "$pub" ]; then
   ok "server: resolve data dir < tn_inst_prepare < tn_k3s_ca_setup < installer < tn_inst_publish_release"
 else bad "server: wrong order (datadir=$rd prepare=$pl ca=$ca installer=$ins publish=$pub)"; fi
+if [ -n "$fin" ] && [ "$ins" -lt "$fin" ] && [ "$fin" -lt "$pub" ] && [ "$(grep -c '^tn_inst_finish$' "$OUT/server.sh")" = 1 ]; then ok "server: tn_inst_finish follows the installer (once)"; else bad "server: tn_inst_finish misplaced (installer=$ins finish=${fin:-none})"; fi
+ai=$(grep -n '^\$SUDO ./k3s_installer.sh' "$OUT/agent.sh" | head -1 | cut -d: -f1); af=$(grep -n '^tn_inst_finish$' "$OUT/agent.sh" | head -1 | cut -d: -f1)
+if [ -n "$af" ] && [ "$ai" -lt "$af" ] && [ "$(grep -c '^tn_inst_finish$' "$OUT/agent.sh")" = 1 ]; then ok "agent: tn_inst_finish follows the installer (once)"; else bad "agent: tn_inst_finish misplaced (installer=$ai finish=${af:-none})"; fi
 if [ "$(grep -c '^tn_inst_prepare server$' "$OUT/server.sh")" = 1 ]; then ok "server: tn_inst_prepare is called once"; else bad "server: tn_inst_prepare is called more than once"; fi
 # INSTALL_K3S_EXEC is final before tn_inst_prepare reads it (a fail-cgroupv1 of the caller must reach the installer),
 # built once, keeps the caller's value, and the data dir guard runs before tn_inst_prepare changes anything
