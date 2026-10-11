@@ -1,3 +1,3 @@
 info "Install Teknoir Manifests"
-$SUDO mkdir -p /var/lib/rancher/k3s/server/manifests
-$SUDO tee /var/lib/rancher/k3s/server/manifests/teknoir.yaml > /dev/null << EOL
+$SUDO mkdir -p ${DATA_DIR}/server/manifests
+$SUDO tee ${DATA_DIR}/server/manifests/teknoir.yaml > /dev/null << EOL

@@ -41,9 +41,25 @@ bootstrapped with the old root repairs it before the k3s installer can upgrade k
 (`TN_K3S_CA_AUTO_REMEDIATE=false` stops with advice instead). The same file is the stand-alone
 tool `sh tn-k3s-ca.sh check|remediate`, see the cli troubleshooting page.
 
+### The k3s version and the data dir
+
+- **Pinned k3s.** `TN_K3S_VERSION` at the top of `templates/00_tn_header.sh` and
+  `agent_templates/00_tn_header.sh` is the k3s release the scripts install (`v1.36.5+k3s1`, the stable
+  channel when written and the release the harness proves with the fixed CA). The installer gets it as
+  `INSTALL_K3S_VERSION`; `INSTALL_K3S_VERSION=v1.xx.y+k3sN sh script` overrides it and
+  `INSTALL_K3S_VERSION=stable` restores the installer's own choice. A server and its agents must run the
+  same release, and k3s cannot be downgraded. Keep the value equal to `DefaultK3SVersion` in
+  teknoir/cli (`pkg/templates/bootstrap_templates.go`).
+- **Data dir.** Devices run k3s from `/var/lib/rancher/k3s`. An older `05_tn_install_k3s.sh` wrote
+  `data-dir: /opt/k3s` to `/etc/rancher/k3s/config.yaml`, but the `config.yaml` written a few lines
+  later replaced the file before the installer ran, so the line never took effect; it is gone. The CA
+  library finds the data dir the way k3s does (`ExecStart` of `k3s.service`, `config.yaml.d/*.yaml`,
+  `config.yaml`, default) and exports `DATA_DIR`; the script writes it back to `config.yaml` if it is
+  not the default, and installs the Teknoir manifests there.
+
 ```bash
 test/check-assembly.sh              # assemble server and agent scripts, sh -n/dash -n, library embedded
-test/check-setup.sh                 # setup under dash with the bootstrap shell options (needs openssl)
+test/check-setup.sh                 # setup under dash with the bootstrap shell options (needs openssl), data dir resolution
 test/k3s-ca/check-vendored.sh --cli ../cli   # vendored files == cli at VENDORED_FROM (or: gh api, no --cli)
 (cd test/k3s-ca && go test ./...)   # offline unit tests of the harness
 

@@ -1,12 +1,12 @@
-info "Prepare K3s CA Certs"
 export PRODUCT="${PRODUCT:-k3s}"
-export DATA_DIR="${DATA_DIR:-/var/lib/rancher/${PRODUCT}}"
 
 # The k3s root CA is the device certificate (rsa_public.pem), re-issued from the
 # same device key with CA:TRUE and keyCertSign, which k3s >= v1.34.12 / v1.35.9 /
 # v1.36.5 / v1.37.1 requires. The library (04_tn_k3s_ca_lib.sh, vendored from
-# teknoir/cli, see test/k3s-ca/VENDORED_FROM) takes CONFIG_PATH, DATA_DIR,
-# PRODUCT, _DEVICE_ID and _DOMAIN from the environment.
+# teknoir/cli, see test/k3s-ca/VENDORED_FROM) takes CONFIG_PATH, PRODUCT, _DEVICE_ID
+# and _DOMAIN from the environment, and finds DATA_DIR itself the way k3s does (an
+# explicit DATA_DIR wins, then ExecStart of k3s.service, config.yaml.d, config.yaml,
+# default /var/lib/rancher/k3s) and exports it; it is used below.
 #   - k3s never started here:  the PKI is created (a valid one is kept)
 #   - k3s started, root fine:  nothing is touched, re-running this script is safe
 #   - k3s started, old root:   repaired first (k3s certificate rotate-ca), before the
@@ -15,13 +15,12 @@ export DATA_DIR="${DATA_DIR:-/var/lib/rancher/${PRODUCT}}"
 tn_k3s_ca_setup
 
 info "Install Rancher K3s"
+# The data dir stays what k3s uses on devices today: /var/lib/rancher/k3s. (An earlier version of this
+# script wrote "data-dir: /opt/k3s" to config.yaml, but the config.yaml written below replaced that file
+# before the installer ran, so it never took effect and no device runs k3s from /opt/k3s.) The CA was
+# prepared in ${DATA_DIR} above; if that is not the default, keep it in config.yaml, or the unit
+# that the installer writes would start k3s on another directory.
 mkdir -p /etc/rancher/k3s
-mkdir -p /opt/k3s
-cat >/etc/rancher/k3s/config.yaml <<'EOF'
-data-dir: /opt/k3s
-disable:
-  - traefik
-EOF
 cat >/etc/sysctl.d/teknoir.inotify.conf <<'EOF'
 fs.inotify.max_user_instances=1024
 EOF
@@ -53,6 +52,16 @@ $SUDO mkdir -p ${K3S_CONFIG_PATH}
 $SUDO tee ${K3S_CONFIG_PATH}/config.yaml > /dev/null << EOL
 node-name: teknoir-master
 EOL
+if [ "${DATA_DIR}" != "/var/lib/rancher/k3s" ]; then
+    echo "data-dir: ${DATA_DIR}" | $SUDO tee -a ${K3S_CONFIG_PATH}/config.yaml > /dev/null
+fi
+
+if [ "${TN_K3S_VERSION}" = stable ]; then
+    unset INSTALL_K3S_VERSION
+else
+    export INSTALL_K3S_VERSION="${TN_K3S_VERSION}"
+    info "Installing k3s ${INSTALL_K3S_VERSION}"
+fi
 
 export INSTALL_K3S_SYMLINK=force
 $SUDO ./k3s_installer.sh

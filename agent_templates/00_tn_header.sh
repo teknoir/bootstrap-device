@@ -11,6 +11,13 @@ umask 027
 #   K3S_URL=https://<IP or mDNS name>:6443 (default: generated at master node creation time)
 #   K3S_TOKEN="32 char string" (default: generated at master node creation time)
 #   CREATE_USER=false (default: ask, create a user for the device without asking)
+#   INSTALL_K3S_VERSION=v1.xx.y+k3sN (default: TN_K3S_VERSION below; "stable" = whatever the k3s installer
+#                          picks as stable today, the old behaviour)
+
+# The k3s release to install: the stable channel when this was written (https://update.k3s.io/v1-release/channels)
+# and the release the CA tests in test/k3s-ca prove. A server and its agents must run the same release.
+# k3s cannot be downgraded: do not set this below what a device already runs.
+TN_K3S_VERSION="${INSTALL_K3S_VERSION:-v1.36.5+k3s1}"
 
 # --- helper functions ---
 info() { echo '[INFO] ' "$@"; }

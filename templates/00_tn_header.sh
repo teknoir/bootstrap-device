@@ -16,4 +16,14 @@ umask 027
 #   INSTALL_WATCHDOG=true (default: false, enable or disable the teknoir watchdog service)
 #   USE_DOCKER=true (default: false, enable the use of docker as container runtime for k3sm inly works for k3s < 1.24)
 #   CREATE_USER=false (default: ask, create a user for the device without asking)
+#   INSTALL_K3S_VERSION=v1.xx.y+k3sN (default: TN_K3S_VERSION below; "stable" = whatever the k3s installer
+#                          picks as stable today, the old behaviour)
+#   TN_K3S_CA_AUTO_REMEDIATE=false (default: true; a re-run on a device bootstrapped with the old
+#                          root CA repairs it before k3s is touched. false stops with advice instead)
+#   DATA_DIR=/path (default: the data dir k3s uses on the device, found like k3s finds it: ExecStart of
+#                          k3s.service, /etc/rancher/k3s/config.yaml.d/*.yaml, config.yaml, else /var/lib/rancher/k3s)
 
+# The k3s release to install: the stable channel when this was written (https://update.k3s.io/v1-release/channels)
+# and the release the CA tests in test/k3s-ca prove. A server and its agents must run the same release.
+# k3s cannot be downgraded: do not set this below what a device already runs.
+TN_K3S_VERSION="${INSTALL_K3S_VERSION:-v1.36.5+k3s1}"

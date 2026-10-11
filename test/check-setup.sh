@@ -7,6 +7,7 @@
 #   - the re-issued root has a new serial (OpenSSL 1.1.1 ignores -set_serial in `x509 -signkey`)
 #   - a failing openssl step makes the setup fail and leaves no server/tls behind (errexit is
 #     ignored in the callers' if/|| context)
+#   - the data dir is found like k3s finds it (config.yaml, config.yaml.d, ExecStart of the unit)
 #   - an initialised data dir with a foreign CA that k3s refuses stops the setup ("must not be upgraded")
 # The docker matrix against real k3s releases is test/k3s-ca/run.sh (see docs/development.md).
 # Usage: test/check-setup.sh
@@ -55,6 +56,31 @@ d3=$(cd "$T" && find . -type f | sort | xargs sha256sum | sha256sum)
 
 ser0=$(openssl x509 -in "$W/etc/rsa_public.pem" -noout -serial); ser1=$(openssl x509 -in "$T/root-ca.pem" -noout -serial)
 [ "$ser0" != "$ser1" ] && ok "re-issued root has a new serial" || bad "re-issued root keeps the serial of the device certificate ($ser1)"
+
+# the data dir is resolved like k3s does when DATA_DIR is not given: config.yaml, then a conf.d file,
+# then --data-dir of the unit; setup creates the PKI there
+for src in config conf-d unit; do
+  rm -rf "$W/data" "$W/rancher" "$W/resolved"; mkdir -p "$W/data" "$W/rancher/config.yaml.d"
+  case $src in
+    config) echo "data-dir: $W/resolved" > "$W/rancher/config.yaml" ;;
+    conf-d) echo "data-dir: $W/never" > "$W/rancher/config.yaml"; echo "data-dir: $W/resolved" > "$W/rancher/config.yaml.d/10-data.yaml" ;;
+    unit) echo "data-dir: $W/never" > "$W/rancher/config.yaml"
+          printf '[Service]\nExecStart=/usr/local/bin/k3s \\\n    server \\\n\t%s \\\n\t%s\n' "'--data-dir'" "'$W/resolved'" > "$W/k3s.service" ;;
+  esac
+  : > "$W/k3s.service.none"
+  if dash -c "set -e; set -o noglob; umask 027
+    info() { echo '[INFO] ' \"\$@\"; }; warn() { echo '[WARN] ' \"\$@\" >&2; }; fatal() { echo '[ERROR] ' \"\$@\" >&2; exit 1; }
+    CONFIG_PATH=$W/etc PRODUCT=k3s _DEVICE_ID=dev1 _DOMAIN=test.local TN_K3S_CONFIG_DIR=$W/rancher
+    TN_K3S_UNIT_FILE=$W/k3s.service
+    export CONFIG_PATH PRODUCT _DEVICE_ID _DOMAIN TN_K3S_CONFIG_DIR TN_K3S_UNIT_FILE
+    [ -f \"\$TN_K3S_UNIT_FILE\" ] || TN_K3S_UNIT_FILE=$W/no-unit
+    TN_K3S_CA_NO_MAIN=1
+    . '$LIB'
+    tn_k3s_ca_setup" >"$W/out.log" 2>&1 && [ -s "$W/resolved/server/tls/server-ca.crt" ] && [ ! -e "$W/never" ]; then
+    ok "data dir resolved from the $src source"
+  else bad "data dir not resolved from the $src source"; cat "$W/out.log" >&2; fi
+done
+rm -rf "$W/data" "$W/rancher" "$W/resolved" "$W/k3s.service"; mkdir -p "$W/data"
 
 # a failing `openssl ca` must fail the setup and install nothing
 REAL=$(command -v openssl)

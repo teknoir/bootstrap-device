@@ -34,6 +34,13 @@ if [ "${USE_DOCKER}" = true ]; then
     export INSTALL_K3S_EXEC="${INSTALL_K3S_EXEC} --docker"
 fi
 
+if [ "${TN_K3S_VERSION}" = stable ]; then
+    unset INSTALL_K3S_VERSION
+else
+    export INSTALL_K3S_VERSION="${TN_K3S_VERSION}"
+    info "Installing k3s ${INSTALL_K3S_VERSION}"
+fi
+
 export INSTALL_K3S_SYMLINK=force
 $SUDO ./k3s_installer.sh
 

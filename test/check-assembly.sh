@@ -4,6 +4,8 @@
 #   - both scripts pass `sh -n` and `dash -n`
 #   - the server script uses tn_k3s_ca_setup and embeds the CA library
 #   - the old verbatim "cp rsa_public.pem -> root-ca.pem" is gone
+#   - server and agent install the same pinned k3s release (INSTALL_K3S_VERSION, default v1.36.5+k3s1,
+#     "stable" restores the installer's own choice); no dead data-dir line; one "Prepare K3s CA Certs"
 #   - the agent script is free of CA preparation (agents take the bundle from /cacerts); it only
 #     adds the device certificate to the OS trust store
 # Usage: test/check-assembly.sh
@@ -48,6 +50,28 @@ if grep -qF 'cp ${CONFIG_PATH}/rsa_public.pem ${DATA_DIR}/server/tls/root-ca.pem
 else ok "server: no verbatim rsa_public.pem -> root-ca.pem copy"; fi
 # the agent trusts the device certificate in the OS store (update-ca-certificates) but creates no CA
 if grep -q 'server/tls\|root-ca' "$OUT/agent.sh"; then bad "agent: prepares a server CA"; else ok "agent: no server CA preparation"; fi
+
+# the k3s pin: the same default in both scripts, set before the installer runs, overridable, "stable" unsets it
+for f in server agent; do
+  grep -q '^TN_K3S_VERSION="${INSTALL_K3S_VERSION:-v1.36.5+k3s1}"$' "$OUT/$f.sh" && ok "$f: k3s pinned to v1.36.5+k3s1 by default, INSTALL_K3S_VERSION overrides" || bad "$f: default k3s pin missing"
+  v=$(grep -n '^    export INSTALL_K3S_VERSION="${TN_K3S_VERSION}"$' "$OUT/$f.sh" | head -1 | cut -d: -f1)
+  i=$(grep -n '^\$SUDO ./k3s_installer.sh' "$OUT/$f.sh" | head -1 | cut -d: -f1)
+  if [ -n "$v" ] && [ -n "$i" ] && [ "$v" -lt "$i" ]; then ok "$f: the pin is exported before the installer runs"; else bad "$f: pin (line ${v:-none}) not before the installer (line ${i:-none})"; fi
+  grep -q 'TN_K3S_VERSION}" = stable' "$OUT/$f.sh" && ok "$f: 'stable' unsets the pin" || bad "$f: no way back to the stable channel"
+done
+# a real run of the pin logic with a fake installer environment: default, override, stable
+for want in "|v1.36.5+k3s1" "INSTALL_K3S_VERSION=v1.34.11+k3s1|v1.34.11+k3s1" "INSTALL_K3S_VERSION=stable|"; do
+  envs=${want%%|*}; exp=${want#*|}
+  got=$(env $envs sh -c '. "$1"; info() { :; }
+    if [ "${TN_K3S_VERSION}" = stable ]; then unset INSTALL_K3S_VERSION; else export INSTALL_K3S_VERSION="${TN_K3S_VERSION}"; fi
+    echo "${INSTALL_K3S_VERSION:-}"' sh "$ROOT/templates/00_tn_header.sh" 2>/dev/null | tail -1)
+  [ "$got" = "$exp" ] && ok "pin logic: ${envs:-default} -> '${got}'" || bad "pin logic: ${envs:-default} gave '$got', want '$exp'"
+done
+# the dead "data-dir: /opt/k3s" line (and `mkdir -p /opt/k3s`) is gone, and the CA step is announced once
+if grep -Eq '^(data-dir: /opt/k3s|mkdir -p /opt/k3s)' "$OUT/server.sh"; then bad "server: still writes data-dir /opt/k3s or creates /opt/k3s"; else ok "server: no dead /opt/k3s data-dir line"; fi
+n=$(grep -c 'info "Prepare K3s CA Certs"' "$OUT/server.sh" || true)
+[ "$n" = 1 ] && ok "server: 'Prepare K3s CA Certs' appears once" || bad "server: 'Prepare K3s CA Certs' appears $n times"
+grep -q '\${DATA_DIR}/server/manifests' "$OUT/server.sh" && ok "server: manifests go to the resolved DATA_DIR" || bad "server: manifests path is not DATA_DIR"
 
 # The assembled library must be the vendored file, unmodified (.sh files are cat'ed raw, no eval).
 if python3 - "$ROOT/templates/04_tn_k3s_ca_lib.sh" "$OUT/server.sh" <<'PY'
