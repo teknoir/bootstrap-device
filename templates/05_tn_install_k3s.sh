@@ -2,107 +2,17 @@ info "Prepare K3s CA Certs"
 export PRODUCT="${PRODUCT:-k3s}"
 export DATA_DIR="${DATA_DIR:-/var/lib/rancher/${PRODUCT}}"
 
-if command -v openssl-3 >/dev/null 2>&1; then
-  OPENSSL=openssl-3
-else
-  OPENSSL=openssl
-fi
-
-info "Using ${OPENSSL}: $(${OPENSSL} version)"
-
-if ! ${OPENSSL} ecparam -name prime256v1 -genkey -noout -out /dev/null >/dev/null 2>&1; then
-  fatal "openssl not found or missing Elliptic Curve (ecparam) support."
-fi
-
-${OPENSSL} version | grep -qF 'OpenSSL 3' && OPENSSL_GENRSA_FLAGS=-traditional
-
-mkdir -p "${DATA_DIR}/server/tls/etcd"
-
-cp ${CONFIG_PATH}/rsa_public.pem ${DATA_DIR}/server/tls/root-ca.pem
-cp ${CONFIG_PATH}/rsa_private.pem ${DATA_DIR}/server/tls/root-ca.key
-
-cd "${DATA_DIR}/server/tls"
-
-# Set up temporary openssl configuration
-mkdir -p ".ca/certs"
-trap "rm -rf .ca" EXIT
-touch .ca/index
-openssl rand -hex 8 > .ca/serial
-cat >.ca/config <<'EOF'
-[ca]
-default_ca = ca_default
-[ca_default]
-dir = ./.ca
-database = $dir/index
-serial = $dir/serial
-new_certs_dir = $dir/certs
-default_md = sha256
-policy = policy_anything
-[policy_anything]
-commonName = supplied
-[req]
-distinguished_name = req_distinguished_name
-[req_distinguished_name]
-[v3_ca]
-subjectKeyIdentifier = hash
-authorityKeyIdentifier = keyid:always
-basicConstraints = critical, CA:true
-keyUsage = critical, digitalSignature, keyEncipherment, keyCertSign
-EOF
-
-if [ -e service.key ]; then
-  info "Generating additional Kubernetes service account issuer RSA key"
-  OLD_SERVICE_KEY="$(cat service.key)"
-else
-  info "Generating Kubernetes service account issuer RSA key"
-fi
-${OPENSSL} genrsa ${OPENSSL_GENRSA_FLAGS:-} -out service.key 2048
-echo "${OLD_SERVICE_KEY}" >> service.key
-
-cat root-ca.pem > root-ca.crt
-
-if [ ! -e root-ca.key ]; then
-  fatal "Cannot generate intermediate certificate without root certificate private key"
-fi
-
-info "Generating intermediate certificate authority RSA key and certificate"
-${OPENSSL} genrsa ${OPENSSL_GENRSA_FLAGS:-} -out intermediate-ca.key 4096
-${OPENSSL} req -new -nodes \
-               -subj "/CN=${PRODUCT}-intermediate-ca@${_DEVICE_ID}.${_DOMAIN}" \
-               -key intermediate-ca.key |
-${OPENSSL} ca  -batch -notext -days 3700 \
-               -in /dev/stdin \
-               -out intermediate-ca.pem \
-               -keyfile root-ca.key \
-               -cert root-ca.pem \
-               -config .ca/config \
-               -extensions v3_ca
-
-cat intermediate-ca.pem root-ca.pem > intermediate-ca.crt
-
-if [ ! -e intermediate-ca.key ]; then
-  fatal "Cannot generate leaf certificates without intermediate certificate private key"
-fi
-
-# Generate new leaf CAs for all the control-plane and etcd components
-for TYPE in client server request-header etcd/peer etcd/server; do
-  CERT_NAME="${PRODUCT}-$(echo ${TYPE} | tr / -)-ca"
-  info "Generating ${CERT_NAME} leaf certificate authority EC key and certificate"
-  ${OPENSSL} ecparam -name prime256v1 -genkey -noout -out ${TYPE}-ca.key
-  ${OPENSSL} req -new -nodes \
-                 -subj "/CN=${CERT_NAME}@${_DEVICE_ID}.${_DOMAIN}" \
-                 -key ${TYPE}-ca.key |
-  ${OPENSSL} ca  -batch -notext -days 3700 \
-                 -in /dev/stdin \
-                 -out ${TYPE}-ca.pem \
-                 -keyfile intermediate-ca.key \
-                 -cert intermediate-ca.pem \
-                 -config .ca/config \
-                 -extensions v3_ca
-  cat ${TYPE}-ca.pem \
-      intermediate-ca.pem \
-      root-ca.pem > ${TYPE}-ca.crt
-done
+# The k3s root CA is the device certificate (rsa_public.pem), re-issued from the
+# same device key with CA:TRUE and keyCertSign, which k3s >= v1.34.12 / v1.35.9 /
+# v1.36.5 / v1.37.1 requires. The library (04_tn_k3s_ca_lib.sh, vendored from
+# teknoir/cli, see test/k3s-ca/VENDORED_FROM) takes CONFIG_PATH, DATA_DIR,
+# PRODUCT, _DEVICE_ID and _DOMAIN from the environment.
+#   - k3s never started here:  the PKI is created (a valid one is kept)
+#   - k3s started, root fine:  nothing is touched, re-running this script is safe
+#   - k3s started, old root:   repaired first (k3s certificate rotate-ca), before the
+#                              installer below can upgrade k3s and brick the device;
+#                              TN_K3S_CA_AUTO_REMEDIATE=false stops with advice instead
+tn_k3s_ca_setup
 
 info "Install Rancher K3s"
 mkdir -p /etc/rancher/k3s
