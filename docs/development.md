@@ -49,9 +49,23 @@ tool `sh tn-k3s-ca.sh check|remediate`, see the cli troubleshooting page.
 - **A re-run keeps the installed k3s.** `tn_inst_prepare` (install library) reads `k3s --version`. A device
   that has k3s keeps that exact release (the pin is the release for a new device); `TN_K3S_UPGRADE=true`
   lets the pin replace it. A downgrade is always refused, and an upgrade over more than one minor
-  version is refused unless `TN_K3S_FORCE=true`.
+  version is refused unless `TN_K3S_FORCE=true`. A k3s binary or `server/db` whose version cannot be
+  read is not installed over (`TN_K3S_FORCE=true` overrides).
+- **An agent follows its server.** A kubelet must not be newer than its apiserver, so a new agent installs
+  the k3s release of its server, not `TN_K3S_VERSION`. k3s does not answer `/version` anonymously (401), so
+  the **server script publishes** the release it runs (`tn_inst_publish_release`, after the installer) as
+  `<data dir>/server/static/teknoir/k3s-version`, which k3s serves without authentication; the agent reads
+  `https://<K3S_URL>/static/teknoir/k3s-version`. A release asked for with `INSTALL_K3S_VERSION` is installed
+  if it is not newer than the server's, refused if it is. If the release of the server cannot be read the
+  agent script stops, unless a release was asked for or `TN_K3S_FORCE=true`; a server bootstrapped by an
+  older script publishes nothing: run its script again (it keeps k3s). OS builds install the pin.
+- **Order in the server script**: `tn_ca_resolve_datadir`, `tn_inst_prepare server` (release policy and
+  kubelet flag), `tn_k3s_ca_setup` (CA; may restart k3s), the installer, `tn_inst_publish_release`. The flag is
+  in place before the CA step restarts k3s, so a k3s that a cgroup v1 host made exit is up for `rotate-ca`.
+  A data dir that disagrees with `config.yaml` stops the script before anything is changed. Restarts wait up
+  to `TN_K3S_SERVICE_TIMEOUT` (600 s) plus a 120 s grace.
 - **cgroup v1 hosts** (Jetson L4T r32/r35, Ubuntu 18.04/20.04; `stat -fc %T /sys/fs/cgroup` is not
-  `cgroup2fs`): Kubernetes >= 1.35 refuses to start the kubelet there. For k3s >= v1.35 the script writes
+  `cgroup2fs`): Kubernetes >= 1.35 refuses to start the kubelet there. For k3s >= v1.31 (the kubelet knows the flag from then on; it only matters from v1.35) the script writes
   `/etc/rancher/k3s/config.yaml.d/99-teknoir-cgroupv1.yaml` (`kubelet-arg+: fail-cgroupv1=false`, which
   appends to the owner's `kubelet-arg`) and warns that cgroup v1 is deprecated. `TN_K3S_CGROUPV1=true|false`
   forces the answer; an OS build cannot tell and sets the flag (harmless on v2).

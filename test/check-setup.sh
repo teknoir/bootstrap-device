@@ -13,7 +13,13 @@
 #     the setup; a lost write in the bundle rebuild stops before rotate-ca; a hanging restart is bounded;
 #     leftover .tn-tls-* work dirs are removed
 #   - the install library (templates/04_tn_k3s_install_lib.sh): the installed k3s is kept, upgrade over
-#     two minors and any downgrade are refused, the cgroup v1 kubelet flag, config.yaml merge
+#     two minors and any downgrade are refused, the cgroup v1 kubelet flag (from k3s v1.31, atomic),
+#     config.yaml merge
+#   - an agent follows the k3s release of its server (published by the server script, read with curl), is
+#     refused when it would be newer, and stops when the server is unknown; a k3s whose version cannot be
+#     read is not installed over; the kubelet flag is in place before the CA step restarts k3s; a slow
+#     restart gets its grace; rotate-ca is tried again while the unit starts; a data dir that disagrees
+#     with config.yaml stops the setup; a refusal says what this run changed
 # The docker matrix against real k3s releases is test/k3s-ca/run.sh (see docs/development.md).
 # Usage: test/check-setup.sh
 set -eu
@@ -69,7 +75,7 @@ for src in config conf-d unit; do
   case $src in
     config) echo "data-dir: $W/resolved" > "$W/rancher/config.yaml" ;;
     conf-d) echo "data-dir: $W/never" > "$W/rancher/config.yaml"; echo "data-dir: $W/resolved" > "$W/rancher/config.yaml.d/10-data.yaml" ;;
-    unit) echo "data-dir: $W/never" > "$W/rancher/config.yaml"
+    unit) echo "node-name: mine" > "$W/rancher/config.yaml"
           printf '[Service]\nExecStart=/usr/local/bin/k3s \\\n    server \\\n\t%s \\\n\t%s\n' "'--data-dir'" "'$W/resolved'" > "$W/k3s.service" ;;
   esac
   : > "$W/k3s.service.none"
@@ -109,8 +115,8 @@ fi
 # drun ENV... -- SCRIPT: the CA library and the install library sourced under the bootstrap script options
 INSTLIB="$ROOT/templates/04_tn_k3s_install_lib.sh"
 drun() {
-  _env=""; while [ "$1" != -- ]; do _env="$_env $1"; shift; done; shift
-  env $_env dash -c "set -e; set -o noglob; umask 027
+  _env=(); while [ "$1" != -- ]; do _env+=("$1"); shift; done; shift
+  env "${_env[@]}" dash -c "set -e; set -o noglob; umask 027
     info() { echo '[INFO] ' \"\$@\"; }; warn() { echo '[WARN] ' \"\$@\" >&2; }; fatal() { echo '[ERROR] ' \"\$@\" >&2; exit 1; }
     TN_K3S_CA_NO_MAIN=1
     . '$LIB'; . '$INSTLIB'
@@ -154,9 +160,9 @@ fi
 rm -f "$W/fake/cat" "$W/fake/n"
 
 # a restart that hangs is bounded and reported as "CA changed, k3s not restarted"
-fresh_legacy 1; mkfake_systemctl active 20
+fresh_legacy 1; mkfake_systemctl activating 20
 t0=$(date +%s)
-if drun $UNITENV "PATH=$W/fake:$PATH" K3S_BIN="$W/fake/k3s" TN_K3S_SERVICE_TIMEOUT=1 -- 'tn_ca_remediate all'; then bad "hanging restart reported as success"
+if drun $UNITENV "PATH=$W/fake:$PATH" K3S_BIN="$W/fake/k3s" TN_K3S_SERVICE_TIMEOUT=1 TN_K3S_READY_GRACE=1 TN_K3S_READY_POLL=1 -- 'tn_ca_remediate all'; then bad "hanging restart reported as success"
 else
   t1=$(date +%s)
   grep -q 'did not finish within 1s' "$W/out.log" && grep -q 'could not be restarted' "$W/out.log" && [ $((t1 - t0)) -lt 15 ] && ok "a hanging restart is bounded and reported" || { bad "restart not bounded"; cat "$W/out.log" >&2; }
@@ -176,7 +182,7 @@ rm -rf "$W/fake" "$W/data"; mkdir -p "$W/data"
 # ---- the install library: release policy, cgroup v1 flag, config.yaml
 mkdir -p "$W/fake"
 ik3s() { printf '#!/bin/sh\necho "k3s version %s (0123abcd)"\n' "$1" > "$W/fake/k3s"; chmod 755 "$W/fake/k3s"; }
-IENV="K3S_BIN=$W/fake/k3s TN_K3S_CONFIG_DIR=$W/icfg TN_CGROUP_FSTYPE=cgroup2fs"
+IENV="K3S_BIN=$W/fake/k3s TN_K3S_CONFIG_DIR=$W/icfg TN_CGROUP_FSTYPE=cgroup2fs DATA_DIR=$W/idata"
 ip() { # PIN [ENV...] -- prints "version=.. action=.." or fails
   _pin=$1; shift
   drun $IENV INSTALL_K3S_VERSION="$_pin" "$@" -- 'tn_inst_plan; echo "RESULT $INSTALL_K3S_VERSION $TN_INST_ACTION"'
@@ -193,14 +199,15 @@ ip v1.36.5+k3s1 && grep -q 'RESULT v1.36.5+k3s1 install' "$W/out.log" && ok "a d
 
 # cgroup v1: the kubelet flag in a drop-in that keeps the owner's kubelet-arg, idempotent, gone on v2
 rm -rf "$W/icfg"; mkdir -p "$W/icfg"; printf 'kubelet-arg:\n  - max-pods=77\n' > "$W/icfg/config.yaml"
-CG="K3S_BIN=$W/fake/none TN_K3S_CONFIG_DIR=$W/icfg INSTALL_K3S_VERSION=v1.36.5+k3s1"
+CG="K3S_BIN=$W/fake/none TN_K3S_CONFIG_DIR=$W/icfg INSTALL_K3S_VERSION=v1.36.5+k3s1 DATA_DIR=$W/idata"
 D="$W/icfg/config.yaml.d/99-teknoir-cgroupv1.yaml"
 drun $CG TN_CGROUP_FSTYPE=tmpfs -- tn_inst_prepare server && grep -q '^kubelet-arg+:' "$D" && grep -q '"fail-cgroupv1=false"' "$D" && grep -q 'cgroup v1 is deprecated' "$W/out.log" && ok "cgroup v1 + k3s 1.36: drop-in written, deprecation warned" || { bad "no cgroup v1 drop-in"; cat "$W/out.log" >&2; }
 sum1=$(sha256sum "$D"); drun $CG TN_CGROUP_FSTYPE=tmpfs -- tn_inst_prepare server; [ "$sum1" = "$(sha256sum "$D")" ] && grep -q 'already in place' "$W/out.log" && ok "cgroup drop-in is idempotent" || bad "cgroup drop-in not idempotent"
 [ "$(cat "$W/icfg/config.yaml")" = "kubelet-arg:
   - max-pods=77" ] && ok "the owner's config.yaml (kubelet-arg) is untouched" || bad "config.yaml changed"
 drun $CG TN_CGROUP_FSTYPE=cgroup2fs -- tn_inst_prepare server && [ ! -e "$D" ] && ok "cgroup v2: drop-in removed" || bad "drop-in kept on cgroup v2"
-rm -f "$D"; drun K3S_BIN="$W/fake/none" TN_K3S_CONFIG_DIR="$W/icfg" INSTALL_K3S_VERSION=v1.34.11+k3s1 TN_CGROUP_FSTYPE=tmpfs -- tn_inst_prepare agent && [ ! -e "$D" ] && ok "cgroup v1 + k3s 1.34: no flag (not needed)" || bad "flag written for k3s 1.34"
+rm -f "$D"; drun K3S_BIN="$W/fake/none" TN_K3S_CONFIG_DIR="$W/icfg" DATA_DIR="$W/idata" INSTALL_K3S_VERSION=v1.34.11+k3s1 TN_K3S_PIN_SOURCE=env TN_CGROUP_FSTYPE=tmpfs -- tn_inst_prepare agent && [ -s "$D" ] && ok "cgroup v1 + k3s 1.34: flag set for a later upgrade (k3s >= v1.31)" || bad "no flag for k3s 1.34"
+rm -f "$D"; drun K3S_BIN="$W/fake/none" TN_K3S_CONFIG_DIR="$W/icfg" DATA_DIR="$W/idata" INSTALL_K3S_VERSION=v1.30.14+k3s1 TN_K3S_PIN_SOURCE=env TN_CGROUP_FSTYPE=tmpfs -- tn_inst_prepare agent && [ ! -e "$D" ] && ok "cgroup v1 + k3s 1.30: no flag (its kubelet does not know it)" || bad "flag written for k3s 1.30"
 drun $CG OS_BUILD=true TN_CGROUP_FSTYPE=cgroup2fs -- tn_inst_prepare server && [ -s "$D" ] && ok "OS build (cgroup cannot be told): flag set" || bad "OS build"
 
 # config.yaml is merged, not replaced
@@ -209,5 +216,86 @@ drun TN_K3S_CONFIG_DIR="$W/icfg" -- 'tn_inst_config_ensure "$TN_K3S_CONFIG_DIR/c
 [ "$(cat "$W/icfg/config.yaml")" = "node-name: mine
 # kept
 data-dir: /opt/k3s" ] && ok "config.yaml: existing keys kept, missing key added once" || { bad "config.yaml merge"; cat "$W/icfg/config.yaml" >&2; }
+
+
+# ---------------------------------------------------------------- follow-up review: agent, order, slow k3s, refusals
+NOSVC="K3S_BIN=$W/fake/none TN_K3S_CONFIG_DIR=$W/fcfg DATA_DIR=$W/fdata TN_CGROUP_FSTYPE=cgroup2fs TN_K3S_SERVER_VERSION_WAIT=0"
+mkdir -p "$W/fcfg" "$W/fake"
+# a curl that answers like the supervisor of k3s: the published release (TN_TEST_PUBLISHED) at
+# /static/teknoir/k3s-version, 404 (exit 22) for everything else, TN_TEST_DOWN: nothing answers
+printf '#!/bin/sh\necho "$*" >> "%s/fake/curl.log"\nfor a in "$@"; do url=$a; done\n[ -z "$TN_TEST_DOWN" ] || exit 7\ncase "$url" in */static/teknoir/k3s-version) [ -z "$TN_TEST_PUBLISHED" ] || { echo "$TN_TEST_PUBLISHED"; exit 0; } ;; esac\nexit 22\n' "$W" > "$W/fake/curl"
+chmod 755 "$W/fake/curl"
+follow() { # PIN SOURCE PUBLISHED [ENV...]: tn_inst_prepare agent, output in out.log, RESULT line
+  _p=$1 _s=$2 _pub=$3; shift 3
+  rm -f "$W/fake/curl.log"
+  drun $NOSVC "PATH=$W/fake:$PATH" K3S_URL=https://srv:6443 INSTALL_K3S_VERSION="$_p" TN_K3S_PIN_SOURCE="$_s" TN_TEST_PUBLISHED="$_pub" "$@" -- 'tn_inst_prepare agent; echo "RESULT $INSTALL_K3S_VERSION $TN_INST_ACTION"'
+}
+follow v1.36.5+k3s1 default v1.34.11+k3s1 && grep -q 'RESULT v1.34.11+k3s1 install' "$W/out.log" && grep -q 'https://srv:6443/static/teknoir/k3s-version' "$W/fake/curl.log" && ok "agent: the default pin v1.36.5 is replaced by the release of the server (v1.34.11)" || { bad "agent does not follow the server"; cat "$W/out.log" >&2; }
+follow v1.34.11+k3s1 default v1.36.5+k3s1 && grep -q 'RESULT v1.36.5+k3s1 install' "$W/out.log" && ok "agent: an older default pin is replaced by the release of the server (v1.36.5)" || bad "agent does not follow a newer server"
+follow v1.36.5+k3s1 env v1.34.11+k3s1 && bad "agent: a release asked for that is newer than the server was installed" || { grep -q 'refusing to install k3s v1.36.5+k3s1 on this agent' "$W/out.log" && grep -q 'Nothing was changed' "$W/out.log" && ok "agent: a requested release newer than the server is refused" || bad "agent: no refusal text"; }
+follow v1.36.5+k3s1 env v1.34.11+k3s1 TN_K3S_FORCE=true && grep -q 'RESULT v1.36.5+k3s1 install' "$W/out.log" && ok "agent: TN_K3S_FORCE=true installs the newer release with a warning" || bad "agent: force"
+follow v1.33.4+k3s1 env v1.34.11+k3s1 && grep -q 'RESULT v1.33.4+k3s1 install' "$W/out.log" && ok "agent: a requested release older than the server is installed (warned)" || bad "agent: older request"
+follow v1.36.5+k3s1 default "" && bad "agent: installed although the server publishes nothing" || { grep -q 'does not publish its release' "$W/out.log" && grep -q 'INSTALL_K3S_VERSION=v1.xx.y+k3sN' "$W/out.log" && ok "agent: a server that publishes nothing stops the script, with the way out" || bad "agent: wrong stop text"; }
+follow v1.36.5+k3s1 default "" TN_TEST_DOWN=1 TN_K3S_SERVER_VERSION_TRIES=2 && bad "agent: installed although the server is down" || { grep -q 'Is the server up' "$W/out.log" && [ "$(wc -l < "$W/fake/curl.log")" = 2 ] && ok "agent: an unreachable server stops the script (2 tries)" || bad "agent: wrong text/tries for a down server"; }
+follow v1.34.11+k3s1 env "" TN_TEST_DOWN=1 TN_K3S_SERVER_VERSION_TRIES=1 && grep -q 'RESULT v1.34.11+k3s1 install' "$W/out.log" && grep -q 'installed as asked' "$W/out.log" && ok "agent: an unknown server and a requested release: installed as asked" || bad "agent: requested release with unknown server"
+follow v1.36.5+k3s1 default "" TN_TEST_DOWN=1 TN_K3S_SERVER_VERSION_TRIES=1 TN_K3S_FORCE=true && grep -q 'RESULT v1.36.5+k3s1 install' "$W/out.log" && ok "agent: TN_K3S_FORCE=true installs with an unknown server" || bad "agent: force with unknown server"
+ik3s v1.34.11+k3s1
+follow v1.36.5+k3s1 default v1.35.9+k3s1 K3S_BIN="$W/fake/k3s" && grep -q 'RESULT v1.34.11+k3s1 keep' "$W/out.log" && [ ! -e "$W/fake/curl.log" ] && ok "agent: an installed k3s is kept, the server is not asked" || bad "agent: installed k3s"
+follow v1.36.5+k3s1 default v1.35.9+k3s1 K3S_BIN="$W/fake/k3s" TN_K3S_UPGRADE=true && grep -q 'RESULT v1.35.9+k3s1 upgrade' "$W/out.log" && ok "agent: an upgrade goes to the release of the server" || bad "agent: upgrade target"
+rm -f "$W/fake/k3s"
+# the cgroup flag follows the release that is installed (here the server's), not the pin
+rm -rf "$W/fcfg"; mkdir -p "$W/fcfg"
+follow v1.36.5+k3s1 default v1.30.14+k3s1 TN_CGROUP_FSTYPE=tmpfs && [ ! -e "$W/fcfg/config.yaml.d/99-teknoir-cgroupv1.yaml" ] && ok "agent: cgroup v1 and a v1.30 server: no flag although the default pin is v1.36" || bad "agent: flag for a v1.30 agent"
+follow v1.30.14+k3s1 default v1.36.5+k3s1 TN_CGROUP_FSTYPE=tmpfs && [ -s "$W/fcfg/config.yaml.d/99-teknoir-cgroupv1.yaml" ] && ok "agent: cgroup v1 and a v1.36 server: flag set although the default pin is v1.30" || bad "agent: no flag for a v1.36 agent"
+# the server publishes what it runs, the agent reads it back
+ik3s v1.34.11+k3s1
+drun $NOSVC K3S_BIN="$W/fake/k3s" DATA_DIR="$W/fdata" -- tn_inst_publish_release && [ "$(cat "$W/fdata/server/static/teknoir/k3s-version")" = v1.34.11+k3s1 ] && ok "server: publishes its release for the agents" || { bad "server: publish"; cat "$W/out.log" >&2; }
+drun $NOSVC K3S_BIN="$W/fake/k3s" DATA_DIR="$W/fdata" -- tn_inst_publish_release && grep -q 'already published' "$W/out.log" && ok "server: publishing again changes nothing" || bad "server: publish is not idempotent"
+rm -f "$W/fake/k3s"
+
+# a k3s whose version cannot be read is not installed over
+printf '#!/bin/sh\necho nonsense\n' > "$W/fake/k3s"; chmod 755 "$W/fake/k3s"
+drun $NOSVC K3S_BIN="$W/fake/k3s" INSTALL_K3S_VERSION=v1.36.5+k3s1 -- 'tn_inst_prepare server' && bad "an unreadable k3s was installed over" || { grep -q 'version cannot be read' "$W/out.log" && grep -q 'TN_K3S_FORCE=true' "$W/out.log" && ok "a k3s binary whose version cannot be read: refused" || bad "unreadable k3s: wrong text"; }
+drun $NOSVC K3S_BIN="$W/fake/k3s" INSTALL_K3S_VERSION=v1.36.5+k3s1 TN_K3S_FORCE=true -- 'tn_inst_prepare server' && ok "... and TN_K3S_FORCE=true goes on" || bad "unreadable k3s with force"
+rm -f "$W/fake/k3s"; mkdir -p "$W/fdata/server/db"
+drun $NOSVC INSTALL_K3S_VERSION=v1.36.5+k3s1 -- 'tn_inst_prepare server' && bad "a datastore without k3s was installed over" || { grep -q 'server/db' "$W/out.log" && ok "a datastore without a k3s binary: refused" || bad "datastore: wrong text"; }
+rm -rf "$W/fdata"
+
+# the refusal says what this run changed
+ik3s v1.37.1+k3s1
+drun $NOSVC K3S_BIN="$W/fake/k3s" INSTALL_K3S_VERSION=v1.36.5+k3s1 TN_K3S_UPGRADE=true TN_K3S_TEST=1 "TN_K3S_CA_CHANGED=the CA was rotated; k3s was restarted" -- 'tn_inst_prepare server' && bad "downgrade allowed" || { grep -q 'earlier in this run: the CA was rotated; k3s was restarted' "$W/out.log" && ! grep -q 'Nothing was changed' "$W/out.log" && ok "a refusal after a CA repair lists what was changed" || bad "refusal after a change"; }
+rm -f "$W/fake/k3s"
+
+# the kubelet flag is in place before the CA step restarts k3s (the server script order), also for rotate-ca
+fresh_legacy 1
+rm -rf "$W/fcfg"; mkdir -p "$W/fcfg"
+printf '#!/bin/sh\nif [ "$1" = --version ]; then echo "k3s version v1.36.5+k3s1 (x)"; exit 0; fi\nif [ -f "%s/fcfg/config.yaml.d/99-teknoir-cgroupv1.yaml" ]; then echo "rotate flag=yes" >> "%s/fake/order.log"; else echo "rotate flag=no" >> "%s/fake/order.log"; fi\nexit 0\n' "$W" "$W" "$W" > "$W/fake/k3s"; chmod 755 "$W/fake/k3s"
+rm -f "$W/fake/order.log"
+RESTART="if [ -f $W/fcfg/config.yaml.d/99-teknoir-cgroupv1.yaml ]; then echo 'restart flag=yes' >> $W/fake/order.log; else echo 'restart flag=no' >> $W/fake/order.log; fi"
+drun $UNITENV TN_K3S_CONFIG_DIR="$W/fcfg" K3S_BIN="$W/fake/k3s" TN_CGROUP_FSTYPE=tmpfs INSTALL_K3S_VERSION=v1.36.5+k3s1 "TN_K3S_RESTART_CMD=$RESTART" -- 'tn_ca_resolve_datadir; tn_inst_prepare server; tn_k3s_ca_setup' && [ "$(sort "$W/fake/order.log" | tr '\n' ' ')" = "restart flag=yes rotate flag=yes " ] && ok "server order: the kubelet flag is in place when rotate-ca runs and when k3s is restarted" || { bad "flag not in place before the CA step"; cat "$W/out.log" "$W/fake/order.log" >&2; }
+fresh_legacy 1; rm -rf "$W/fcfg"; mkdir -p "$W/fcfg"; rm -f "$W/fake/order.log"
+drun $UNITENV TN_K3S_CONFIG_DIR="$W/fcfg" K3S_BIN="$W/fake/k3s" TN_CGROUP_FSTYPE=tmpfs INSTALL_K3S_VERSION=v1.36.5+k3s1 "TN_K3S_RESTART_CMD=$RESTART" -- 'tn_k3s_ca_setup; tn_inst_prepare server' && [ "$(sort "$W/fake/order.log" | tr '\n' ' ')" = "restart flag=no rotate flag=no " ] && ok "(the old order, CA first, does not have the flag: this is what the new order fixes)" || bad "the control order test is wrong"
+rm -f "$W/fake/k3s"
+
+# a slow restart: default timeout 600 s, a unit that gets there during the grace is a success, rotate-ca is tried again
+drun $UNITENV -- 'echo "TIMEOUT=$(tn_ca_svc_timeout)"' && grep -q 'TIMEOUT=600' "$W/out.log" && ok "TN_K3S_SERVICE_TIMEOUT defaults to 600 s" || bad "service timeout default"
+fresh_legacy 1
+printf '#!/bin/sh\necho "$*" >> "%s/fake/log"\ncase "$1" in\n is-active) if [ -f "%s/fake/restarted" ] && [ $(( $(date +%%s) - $(cat "%s/fake/restarted") )) -lt 3 ]; then echo activating; exit 3; fi; echo active ;;\n restart) date +%%s > "%s/fake/restarted"; sleep 20 ;;\n cat) exit 0 ;;\nesac\n' "$W" "$W" "$W" "$W" > "$W/fake/systemctl"; chmod 755 "$W/fake/systemctl"
+printf '[Service]\nExecStart=/usr/local/bin/k3s server\n' > "$W/fake/k3s.service"
+printf '#!/bin/sh\nif [ "$1" = --version ]; then echo "k3s version v1.34.11+k3s1 (x)"; fi\nexit 0\n' > "$W/fake/k3s"; chmod 755 "$W/fake/k3s"
+rm -f "$W/fake/restarted"
+drun $UNITENV "PATH=$W/fake:$PATH" K3S_BIN="$W/fake/k3s" TN_K3S_SERVICE_TIMEOUT=1 TN_K3S_READY_GRACE=20 TN_K3S_READY_POLL=1 -- 'tn_ca_remediate all' && grep -q 'k3s is active now' "$W/out.log" && ! grep -q 'could not be restarted' "$W/out.log" && ok "a restart that is slow but gets there during the grace is a success" || { bad "grace after a timeout"; cat "$W/out.log" >&2; }
+fresh_legacy 1
+printf '#!/bin/sh\ncase "$1" in\n is-active) echo activating; exit 3 ;;\n cat) exit 0 ;;\nesac\n' > "$W/fake/systemctl"; chmod 755 "$W/fake/systemctl"
+printf '#!/bin/sh\nif [ "$1" = --version ]; then echo "k3s version v1.34.11+k3s1 (x)"; exit 0; fi\necho x >> "%s/fake/rotate.calls"\nn=$(wc -l < "%s/fake/rotate.calls")\n[ "$n" -ge 3 ] || exit 1\nexit 0\n' "$W" "$W" > "$W/fake/k3s"; chmod 755 "$W/fake/k3s"
+rm -f "$W/fake/rotate.calls"
+drun $UNITENV "PATH=$W/fake:$PATH" K3S_BIN="$W/fake/k3s" TN_K3S_RESTART_CMD=true TN_K3S_ROTATE_TRIES=5 TN_K3S_ROTATE_WAIT=1 -- 'tn_ca_remediate all' && [ "$(wc -l < "$W/fake/rotate.calls")" = 3 ] && ok "rotate-ca is tried again while the unit is starting (3rd try works)" || { bad "rotate-ca retry"; cat "$W/out.log" >&2; }
+rm -rf "$W/fake"; mkdir -p "$W/fake"
+
+# a data dir that disagrees with config.yaml is refused before anything is changed
+rm -rf "$W/data" "$W/dcfg"; mkdir -p "$W/dcfg"
+printf 'data-dir: %s/other\n' "$W" > "$W/dcfg/config.yaml"
+printf '[Service]\nExecStart=/usr/local/bin/k3s \\\n    server \\\n\t%s \\\n\t%s\n' "'--data-dir'" "'$W/data'" > "$W/dcfg.service"
+drun TN_K3S_CONFIG_DIR="$W/dcfg" TN_K3S_UNIT_FILE="$W/dcfg.service" CONFIG_PATH="$W/etc" PRODUCT=k3s _DEVICE_ID=dev1 _DOMAIN=test.local DATA_DIR= -- tn_k3s_ca_setup && bad "a data dir that disagrees with config.yaml was accepted" || { grep -q "config.yaml sets data-dir: $W/other" "$W/out.log" && grep -q 'were not changed' "$W/out.log" && [ ! -e "$W/data" ] && [ ! -e "$W/other" ] && ok "a data dir that disagrees with config.yaml stops the setup before anything is created" || { bad "data dir mismatch: wrong stop"; cat "$W/out.log" >&2; }; }
 
 [ "$fail" = 0 ] && echo "setup smoke test passed" || { echo "setup smoke test FAILED" >&2; exit 1; }

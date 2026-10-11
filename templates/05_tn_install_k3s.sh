@@ -1,5 +1,23 @@
 export PRODUCT="${PRODUCT:-k3s}"
 
+# The k3s release for the installer.
+if [ "${TN_K3S_VERSION}" = stable ]; then
+    unset INSTALL_K3S_VERSION
+else
+    export INSTALL_K3S_VERSION="${TN_K3S_VERSION}"
+    info "Installing k3s ${INSTALL_K3S_VERSION}"
+fi
+
+# Order: (1) the k3s release policy and the cgroup v1 kubelet flag, (2) the CA, (3) the k3s installer.
+# (1) comes first: it refuses before anything on the device is changed, and the kubelet flag is in place
+# when the CA step restarts k3s (a k3s that a cgroup v1 host made exit restarts itself in a loop, and has
+# to be up for rotate-ca). A re-run keeps the installed k3s (unless TN_K3S_UPGRADE=true) and sets
+# fail-cgroupv1=false on cgroup v1 hosts, which Kubernetes >= 1.35 would refuse (library:
+# 04_tn_k3s_install_lib.sh, vendored from teknoir/cli). The data dir is looked up first, the way the CA step
+# does it: a k3s datastore there decides whether a k3s whose version cannot be read is installed over.
+tn_ca_resolve_datadir
+tn_inst_prepare server
+
 # The k3s root CA is the device certificate (rsa_public.pem), re-issued from the
 # same device key with CA:TRUE and keyCertSign, which k3s >= v1.34.12 / v1.35.9 /
 # v1.36.5 / v1.37.1 requires. The library (04_tn_k3s_ca_lib.sh, vendored from
@@ -56,15 +74,11 @@ if [ "${DATA_DIR}" != "/var/lib/rancher/k3s" ]; then
     tn_inst_config_ensure ${K3S_CONFIG_PATH}/config.yaml data-dir "data-dir: ${DATA_DIR}"
 fi
 
-if [ "${TN_K3S_VERSION}" = stable ]; then
-    unset INSTALL_K3S_VERSION
-else
-    export INSTALL_K3S_VERSION="${TN_K3S_VERSION}"
-    info "Installing k3s ${INSTALL_K3S_VERSION}"
-fi
-
-# A re-run keeps the installed k3s (unless TN_K3S_UPGRADE=true) and sets fail-cgroupv1=false on cgroup v1
-# hosts, which Kubernetes >= 1.35 would refuse (library: 04_tn_k3s_install_lib.sh, vendored from teknoir/cli).
-tn_inst_prepare server
+# The release (INSTALL_K3S_VERSION) and the kubelet flag were decided by tn_inst_prepare above.
 export INSTALL_K3S_SYMLINK=force
 $SUDO ./k3s_installer.sh
+
+# Tell the agents which k3s release this server runs: they install exactly that one (a kubelet must not
+# be newer than its apiserver), and k3s does not answer /version to an anonymous caller. Served by k3s at
+# https://<server>:6443/static/teknoir/k3s-version.
+tn_inst_publish_release

@@ -38,11 +38,12 @@ if [ "${TN_K3S_VERSION}" = stable ]; then
     unset INSTALL_K3S_VERSION
 else
     export INSTALL_K3S_VERSION="${TN_K3S_VERSION}"
-    info "Installing k3s ${INSTALL_K3S_VERSION}"
+    info "k3s release of this script: ${INSTALL_K3S_VERSION} (an agent installs the release of its server unless one was asked for)"
 fi
 
-# A re-run keeps the installed k3s (unless TN_K3S_UPGRADE=true) and sets fail-cgroupv1=false on cgroup v1
-# hosts, which Kubernetes >= 1.35 would refuse (library: 02_tn_k3s_install_lib.sh, vendored from teknoir/cli).
+# A new agent gets the k3s release of its server (read from K3S_URL); a re-run keeps the installed k3s
+# (unless TN_K3S_UPGRADE=true) and sets fail-cgroupv1=false on cgroup v1 hosts, which Kubernetes >= 1.35
+# would refuse (library: 02_tn_k3s_install_lib.sh, vendored from teknoir/cli).
 tn_inst_prepare agent
 export INSTALL_K3S_SYMLINK=force
 $SUDO ./k3s_installer.sh

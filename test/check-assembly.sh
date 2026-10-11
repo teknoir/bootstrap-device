@@ -96,6 +96,34 @@ done
 if grep -q 'tee \${K3S_CONFIG_PATH}/config.yaml' "$OUT/server.sh"; then bad "server: still overwrites config.yaml"; else ok "server: config.yaml is not overwritten"; fi
 grep -q 'tn_inst_config_ensure ${K3S_CONFIG_PATH}/config.yaml node-name' "$OUT/server.sh" && ok "server: node-name through tn_inst_config_ensure" || bad "server: tn_inst_config_ensure missing"
 
+# server order: release policy + cgroup flag, then the CA step, then the installer, then the publication
+pl=$(grep -n '^tn_inst_prepare server$' "$OUT/server.sh" | head -1 | cut -d: -f1)
+rd=$(grep -n '^tn_ca_resolve_datadir$' "$OUT/server.sh" | head -1 | cut -d: -f1)
+ca=$(grep -n '^tn_k3s_ca_setup$' "$OUT/server.sh" | head -1 | cut -d: -f1)
+ins=$(grep -n '^\$SUDO ./k3s_installer.sh' "$OUT/server.sh" | head -1 | cut -d: -f1)
+pub=$(grep -n '^tn_inst_publish_release$' "$OUT/server.sh" | head -1 | cut -d: -f1)
+if [ -n "$rd" ] && [ -n "$pl" ] && [ -n "$ca" ] && [ -n "$ins" ] && [ -n "$pub" ] && [ "$rd" -lt "$pl" ] && [ "$pl" -lt "$ca" ] && [ "$ca" -lt "$ins" ] && [ "$ins" -lt "$pub" ]; then
+  ok "server: resolve data dir < tn_inst_prepare < tn_k3s_ca_setup < installer < tn_inst_publish_release"
+else bad "server: wrong order (datadir=$rd prepare=$pl ca=$ca installer=$ins publish=$pub)"; fi
+if [ "$(grep -c '^tn_inst_prepare server$' "$OUT/server.sh")" = 1 ]; then ok "server: tn_inst_prepare is called once"; else bad "server: tn_inst_prepare is called more than once"; fi
+grep -q '^tn_inst_publish_release$' "$OUT/agent.sh" && bad "agent: publishes a release" || ok "agent: does not publish a release"
+# who chose the k3s release (an agent follows its server unless a release was asked for)
+for f in server agent; do
+  hdr=$([ $f = server ] && echo templates/00_tn_header.sh || echo agent_templates/00_tn_header.sh)
+  grep -q '^export TN_K3S_PIN_SOURCE$' "$OUT/$f.sh" && ok "$f: records TN_K3S_PIN_SOURCE" || bad "$f: TN_K3S_PIN_SOURCE missing"
+  for want in "|default" "INSTALL_K3S_VERSION=v1.34.11+k3s1|env"; do
+    envs=${want%%|*}; exp=${want#*|}
+    # (only the pin lines: the agent header insists on root)
+    sed -n '/^if \[ -n "${INSTALL_K3S_VERSION:-}" \]; then TN_K3S_PIN_SOURCE/,/^export TN_K3S_PIN_SOURCE/p' "$ROOT/$hdr" > "$OUT/pin.sh"
+    got=$(env -u INSTALL_K3S_VERSION $envs sh -c '. "$1"; echo "$TN_K3S_PIN_SOURCE"' sh "$OUT/pin.sh" 2>/dev/null | tail -1)
+    [ "$got" = "$exp" ] && ok "$f: pin source ${envs:-default} -> $got" || bad "$f: pin source ${envs:-default} gave '$got', want '$exp'"
+  done
+done
+# the agent has K3S_URL before it asks the server
+k=$(grep -n '^export K3S_URL=${K3S_URL}$' "$OUT/agent.sh" | head -1 | cut -d: -f1)
+pa=$(grep -n '^tn_inst_prepare agent$' "$OUT/agent.sh" | head -1 | cut -d: -f1)
+if [ -n "$k" ] && [ -n "$pa" ] && [ "$k" -lt "$pa" ]; then ok "agent: K3S_URL is set before tn_inst_prepare agent"; else bad "agent: K3S_URL (line ${k:-none}) not before tn_inst_prepare agent (line ${pa:-none})"; fi
+
 # The assembled library must be the vendored file, unmodified (.sh files are cat'ed raw, no eval).
 if python3 - "$ROOT/templates/04_tn_k3s_ca_lib.sh" "$OUT/server.sh" <<'PY'
 import sys
