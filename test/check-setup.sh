@@ -350,6 +350,42 @@ else bad "prepare failed (upgrade from 1.30)"; cat "$W/out.log" >&2; fi
 if drun $UPG -- 'tn_inst_prepare server; tn_inst_finish'; then
   [ -s "$PD" ] && ok "... and tn_inst_finish (after the installer) writes it" || bad "tn_inst_finish did not write the flag"
 else bad "finish failed"; cat "$W/out.log" >&2; fi
+# ... but the installer starts the NEW release as soon as it has written the unit, and v1.35 or later does not
+# start on cgroup v1 without the flag: for a channel, or an exact v1.35 or later, the flag is on the installer's
+# command (INSTALL_K3S_EXEC, once) from the first start; for an exact v1.31 - v1.34 it is not
+FLAG='--kubelet-arg=fail-cgroupv1=false'
+UPC="K3S_BIN=$W/fake/k3s TN_K3S_CONFIG_DIR=$W/pcfg DATA_DIR=$W/pdata TN_CGROUP_FSTYPE=tmpfs TN_K3S_UPGRADE=true TN_K3S_PIN_SOURCE=flag"
+execafter() { # NAME EXPECTED_EXEC ENV... : tn_inst_prepare twice (a re-run in one shell must not add the flag twice), then the drop-in only after finish
+  _n=$1; _want=$2; shift 2
+  rm -rf "$W/pcfg" "$W/pdata"
+  if drun $UPC "$@" -- 'tn_inst_prepare server; tn_inst_prepare server; echo "EXEC=[$INSTALL_K3S_EXEC]"'; then
+    got=$(sed -n 's/^EXEC=\[\(.*\)\]$/\1/p' "$W/out.log")
+    [ "$got" = "$_want" ] && [ ! -e "$PD" ] && ok "$_n: INSTALL_K3S_EXEC='$got', no drop-in before the installer" || { bad "$_n: INSTALL_K3S_EXEC='$got' (want '$_want'), drop-in $([ -e "$PD" ] && echo present || echo absent)"; cat "$W/out.log" >&2; }
+    drun $UPC "$@" -- 'tn_inst_prepare server; tn_inst_finish' && [ -s "$PD" ] || bad "$_n: no drop-in after tn_inst_finish"
+  else bad "$_n: prepare failed"; cat "$W/out.log" >&2; fi
+}
+execafter "1.30 + channel upgrade" "server --tls-san a $FLAG" INSTALL_K3S_VERSION= INSTALL_K3S_CHANNEL=stable "INSTALL_K3S_EXEC=server --tls-san a"
+execafter "1.30 + channel upgrade, empty command" "$FLAG" INSTALL_K3S_VERSION= INSTALL_K3S_CHANNEL=latest
+execafter "1.30 + TN_K3S_FORCE jump to v1.36.5" "agent $FLAG" INSTALL_K3S_VERSION=v1.36.5+k3s1 TN_K3S_FORCE=true INSTALL_K3S_EXEC=agent
+execafter "1.30 + exact v1.31.14 (accepts the flag, does not need it on its first start)" "server" INSTALL_K3S_VERSION=v1.31.14+k3s1 INSTALL_K3S_EXEC=server
+execafter "1.30 + channel upgrade, the caller has the flag already" "server $FLAG" INSTALL_K3S_VERSION= INSTALL_K3S_CHANNEL=stable "INSTALL_K3S_EXEC=server $FLAG"
+# the real prologue of the server script: the flag is on the command that the installer gets
+rm -rf "$W/pcfg" "$W/pdata"
+if drun $UPC PRODUCT=k3s _K3S_TOKEN=tok _DEVICE_ID=dev1 _DOMAIN=test.local TN_K3S_UNIT_FILE=$W/no-unit INSTALL_K3S_VERSION=v1.36.5+k3s1 TN_K3S_FORCE=true -- ". '$W/prologue.sh'; echo \"EXEC=\$INSTALL_K3S_EXEC\""; then
+  got=$(sed -n 's/^EXEC=//p' "$W/out.log")
+  [ "$got" = "$BASEEXEC $FLAG" ] && [ ! -e "$PD" ] && ok "server script prologue, installed 1.30 + forced v1.36.5: the installer gets '$FLAG', the drop-in waits" || { bad "prologue: INSTALL_K3S_EXEC='$got'"; cat "$W/out.log" >&2; }
+else bad "prologue failed (1.30 -> 1.36.5)"; cat "$W/out.log" >&2; fi
+# only an uncommented fail-cgroupv1=false is the device's own setting: a comment and =true are not, a .yml is
+rm -rf "$W/pcfg" "$W/pdata" "$W/fake"; mkdir -p "$W/fake" "$W/pcfg/config.yaml.d"; ik3s v1.36.5+k3s1
+printf 'kubelet-arg+:\n  # - fail-cgroupv1=false\n  - fail-cgroupv1=true\n' > "$W/pcfg/config.yaml.d/10-user.yaml"
+printf '# fail-cgroupv1=false\n' > "$W/pcfg/config.yaml"
+if drun $PENV -- ". '$W/prologue.sh'"; then
+  [ -s "$PD" ] && ! grep -q 'set by the device itself' "$W/out.log" && ok "a commented flag and fail-cgroupv1=true are not the device's setting: the drop-in is written" || { bad "a comment or =true counted"; cat "$W/out.log" >&2; }
+else bad "prologue failed (comment, =true)"; cat "$W/out.log" >&2; fi
+printf 'kubelet-arg+: ["fail-cgroupv1=false"]\n' > "$W/pcfg/config.yaml.d/20-user.yml"
+if drun $PENV -- ". '$W/prologue.sh'"; then
+  [ ! -e "$PD" ] && ok "fail-cgroupv1=false in a config.yaml.d/*.yml: our drop-in is removed" || { bad "drop-in kept next to a .yml setting"; cat "$W/out.log" >&2; }
+else bad "prologue failed (.yml)"; cat "$W/out.log" >&2; fi
 rm -rf "$W/pcfg" "$W/pdata" "$W/fake"; mkdir -p "$W/fake"; ik3s v1.36.5+k3s1
 # a data dir that disagrees with config.yaml is refused before tn_inst_prepare changes anything (no drop-in)
 rm -rf "$W/pcfg" "$W/pdata"; mkdir -p "$W/pcfg"; printf 'data-dir: %s/other\n' "$W" > "$W/pcfg/config.yaml"

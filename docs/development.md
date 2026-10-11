@@ -73,6 +73,11 @@ tool `sh tn-k3s-ca.sh check|remediate`, see the cli troubleshooting page.
   `/etc/rancher/k3s/config.yaml.d/99-teknoir-cgroupv1.yaml` (`kubelet-arg+: fail-cgroupv1=false`, which
   appends to the owner's `kubelet-arg`) and warns that cgroup v1 is deprecated. `TN_K3S_CGROUPV1=true|false`
   forces the answer; an OS build cannot tell and sets the flag (harmless on v2).
+  When the installed k3s is older than v1.31 and is being upgraded, the drop-in waits for `tn_inst_finish`
+  (the old kubelet cannot take the flag), and for a channel or an exact v1.35 or later the flag is also
+  appended to `INSTALL_K3S_EXEC` so that the new unit has it from its first start (the installer starts
+  the new release before `tn_inst_finish` can run). Only an uncommented `fail-cgroupv1=false` counts as the
+  device's own setting; a comment and `fail-cgroupv1=true` do not.
 - `/etc/rancher/k3s/config.yaml` is no longer replaced by a re-run: missing keys are added.
 
 ### The k3s version and the data dir

@@ -1,4 +1,4 @@
-# vendored from teknoir/cli pkg/templates/scripts/tn-k3s-ca.sh @ 3712031eb3ffea9bd7cb27976dde62a53d9ee822
+# vendored from teknoir/cli pkg/templates/scripts/tn-k3s-ca.sh @ 1d6165667070c291da37951529e44a6003782439
 #!/bin/sh
 # tn-k3s-ca.sh - the custom k3s CA of a Teknoir device: setup, check, remediate.
 #
