@@ -1,7 +1,7 @@
 # Source of the vendored files. Do not edit them here: change teknoir/cli, then re-vendor
 # (see docs/development.md) and update SHA. Verified by test/k3s-ca/check-vendored.sh.
 REPO=teknoir/cli
-SHA=1d6165667070c291da37951529e44a6003782439
+SHA=47d39cd3d2c8bc9dcf86bd837cc63b771bfa8b38
 LIB_PATH=pkg/templates/scripts/tn-k3s-ca.sh
 HARNESS_PATH=test/k3s-ca
 LIB2_PATH=pkg/templates/scripts/tn-k3s-install.sh
